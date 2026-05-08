@@ -42,11 +42,12 @@ const U="https://services3.arcgis.com/GrtkUOn0HwWHTOSb/arcgis/rest/services/Dash
 L=8,FF="PrimProdNu",
 F={p:"PastureNumber",pr:"Producer",ca:"CAFO_Size",ac:"Acreage",ni:"Nitrate",am:"Ammonia",ph:"Phosphate",po:"Potassium",om:"OrgCarbon",pH:"PHLevel"};
 let tk="";
-require(["esri/config","esri/identity/IdentityManager","esri/portal/Portal"],function(cfg,idm,Portal){
+require(["esri/config","esri/identity/IdentityManager","esri/identity/OAuthInfo"],function(cfg,idm,OAuthInfo){
 cfg.portalUrl="https://tillamookfarm.maps.arcgis.com";
-idm.getCredential("https://tillamookfarm.maps.arcgis.com/sharing").then(function(c){tk=c.token;}).catch(function(){
-const portal=new Portal();portal.load().then(function(){const c=idm.findCredential("https://tillamookfarm.maps.arcgis.com");if(c)tk=c.token;});
-});});
+const info=new OAuthInfo({appId:"XXhTl7RM4yjNPzMB",portalUrl:"https://tillamookfarm.maps.arcgis.com",popup:false});
+idm.registerOAuthInfos([info]);
+idm.getCredential("https://tillamookfarm.maps.arcgis.com/sharing").then(function(c){tk=c.token;}).catch(function(){});
+});
 function ss(m){const e=document.getElementById("st");e.style.display="block";e.innerHTML='<span class="sp"></span> '+m;}
 function hs(){document.getElementById("st").style.display="none";}
 function fm(v,d){if(v===null||v===undefined||v==="")return"";d=d!==undefined?d:1;return parseFloat(v).toFixed(d);}
