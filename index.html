@@ -72,7 +72,7 @@ var ex={a:Math.min.apply(null,xs)-xr*0.15,b:Math.min.apply(null,ys)-yr*0.15,c:Ma
 var W=1000,H=600;
 var cv=document.createElement("canvas");cv.width=W;cv.height=H;
 var cx=cv.getContext("2d");
-var wk=(sr&&sr.wkid)?sr.wkid:4326;
+var wk=4326;
 var bmUrl="https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox="+ex.a+","+ex.b+","+ex.c+","+ex.d+"&bboxSR="+wk+"&size="+W+","+H+"&imageSR="+wk+"&format=png&f=image";
 
 function drawOverlay(){
@@ -123,7 +123,7 @@ if(!serverToken){alert("Still authenticating. Wait a moment and try again.");ret
 var s=document.getElementById("s");s.style.display="block";s.textContent="Loading farm "+fn+"...";
 document.getElementById("go").disabled=true;
 
-fetch(QUERY_URL+"?where="+encodeURIComponent("PrimProdNum='"+fn+"'")+"&outFields=PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=true&f=json&token="+encodeURIComponent(serverToken)).then(function(r){return r.json();}).then(function(d){
+fetch(QUERY_URL+"?where="+encodeURIComponent("PrimProdNum='"+fn+"'")+"&outFields=PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=true&outSR=4326&f=json&token="+encodeURIComponent(serverToken)).then(function(r){return r.json();}).then(function(d){
 if(d.error){throw new Error(d.error.message);}
 if(!d.features||d.features.length===0){s.textContent="No pastures found for farm "+fn;document.getElementById("go").disabled=false;return;}
 var fs=d.features,fi=fs[0].attributes;
