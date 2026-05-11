@@ -66,23 +66,63 @@ var g=fs[i].geometry;
 if(g&&g.rings){for(var j=0;j<g.rings.length;j++){for(var k=0;k<g.rings[j].length;k++){xs.push(g.rings[j][k][0]);ys.push(g.rings[j][k][1]);}}}
 }
 if(xs.length===0){resolve("");return;}
-var xmin=Math.min.apply(null,xs),xmax=Math.max.apply(null,xs);
-var ymin=Math.min.apply(null,ys),ymax=Math.max.apply(null,ys);
-var dx=xmax-xmin||0.001;
-var dy=ymax-ymin||0.001;
+function toMerc(lon,lat){var x=lon*20037508.34/180;var y=Math.log(Math.tan((90+lat)*Math.PI/360))*20037508.34/Math.PI;return[x,y];}
+var mxs=[],mys=[];
+for(var i=0;i<xs.length;i++){var m=toMerc(xs[i],ys[i]);mxs.push(m[0]);mys.push(m[1]);}
+var xmin=Math.min.apply(null,mxs),xmax=Math.max.apply(null,mxs);
+var ymin=Math.min.apply(null,mys),ymax=Math.max.apply(null,mys);
+var dx=xmax-xmin||1;var dy=ymax-ymin||1;
 xmin-=dx*0.08;xmax+=dx*0.08;ymin-=dy*0.08;ymax+=dy*0.08;
 dx=xmax-xmin;dy=ymax-ymin;
-var cosLat=Math.cos((ymin+ymax)/2*Math.PI/180);
-var geoWidth=dx*cosLat;
-var geoHeight=dy;
-var maxPx=1000;
 var W,H;
-if(geoWidth>geoHeight){W=maxPx;H=Math.round(maxPx*geoHeight/geoWidth);}
-else{H=maxPx;W=Math.round(maxPx*geoWidth/geoHeight);}
+if(dx>dy){W=1000;H=Math.round(1000*dy/dx);}else{H=1000;W=Math.round(1000*dx/dy);}
 if(W<400)W=400;if(H<400)H=400;
 var cv=document.createElement("canvas");cv.width=W;cv.height=H;
 var cx=cv.getContext("2d");
-var bmUrl="https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox="+xmin+","+ymin+","+xmax+","+ymax+"&bboxSR=4326&size="+W+","+H+"&imageSR=4326&format=png&f=image";
+var bmUrl="https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox="+xmin+","+ymin+","+xmax+","+ymax+"&bboxSR=102100&size="+W+","+H+"&imageSR=102100&format=png&f=image";
+
+function drawOverlay(){
+for(var i=0;i<fs.length;i++){
+var g=fs[i].geometry;
+if(!g||!g.rings)continue;
+for(var j=0;j<g.rings.length;j++){
+cx.beginPath();
+for(var k=0;k<g.rings[j].length;k++){
+var mc=toMerc(g.rings[j][k][0],g.rings[j][k][1]);
+var px=(mc[0]-xmin)/(xmax-xmin)*W;
+var py=H-(mc[1]-ymin)/(ymax-ymin)*H;
+if(k===0)cx.moveTo(px,py);else cx.lineTo(px,py);
+}
+cx.closePath();cx.fillStyle="rgba(46,204,113,0.5)";cx.fill();cx.strokeStyle="#FFFF00";cx.lineWidth=3;cx.stroke();
+}}
+cx.font="bold 10px Helvetica";cx.textAlign="center";cx.textBaseline="middle";
+for(var i=0;i<fs.length;i++){
+var g=fs[i].geometry;
+if(!g||!g.rings)continue;
+var ax=[],ay=[];
+for(var j=0;j<g.rings.length;j++){for(var k=0;k<g.rings[j].length;k++){ax.push(g.rings[j][k][0]);ay.push(g.rings[j][k][1]);}}
+var mlat=0,mlon=0;for(var j=0;j<ax.length;j++){mlon+=ax[j];mlat+=ay[j];}mlon/=ax.length;mlat/=ay.length;
+var mc=toMerc(mlon,mlat);
+var px=(mc[0]-xmin)/(xmax-xmin)*W;var py=H-(mc[1]-ymin)/(ymax-ymin)*H;
+var lb=(fs[i].attributes.PastureNumber||"").toString().replace(fn+"-","");
+var mt=cx.measureText(lb);
+cx.fillStyle="rgba(255,255,255,0.85)";cx.fillRect(px-mt.width/2-2,py-6,mt.width+4,12);
+cx.fillStyle="#1B3A5C";cx.fillText(lb,px,py);
+}
+cx.font="bold 16px Helvetica";cx.textAlign="center";
+var ti="Farm "+fn+": "+pr;var tm=cx.measureText(ti);
+cx.fillStyle="rgba(255,255,255,0.85)";cx.fillRect(W/2-tm.width/2-10,8,tm.width+20,26);
+cx.fillStyle="#1B3A5C";cx.fillText(ti,W/2,22);
+resolve('<h3>Farm Map</h3><img src="'+cv.toDataURL("image/png")+'" style="width:100%;max-width:950px;border:2px solid #1B3A5C;border-radius:4px;display:block;margin:0 auto">');
+}
+
+var img=new Image();
+img.crossOrigin="anonymous";
+img.onload=function(){cx.drawImage(img,0,0,W,H);drawOverlay();};
+img.onerror=function(){cx.fillStyle="#ddd";cx.fillRect(0,0,W,H);drawOverlay();};
+img.src=bmUrl;
+});
+}
 
 function drawOverlay(){
 for(var i=0;i<fs.length;i++){
