@@ -45,7 +45,7 @@ var serverToken="";
 
 require(["esri/config","esri/identity/OAuthInfo","esri/identity/IdentityManager"],function(cfg,OAuthInfo,idm){
 cfg.portalUrl=PORTAL;
-var info=new OAuthInfo({appId:APP_ID,portalUrl:PORTAL,popup:false});
+var info=new OAuthInfo({appId:APP_ID,portalUrl:PORTAL,popup:true});
 idm.registerOAuthInfos([info]);
 idm.checkSignInStatus(PORTAL+"/sharing").catch(function(){
 return idm.getCredential(PORTAL+"/sharing");
