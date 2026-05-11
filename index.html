@@ -2,34 +2,73 @@
 <html><head><meta charset="UTF-8"><title>TCCA Soil Report</title>
 <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
 <script src="https://js.arcgis.com/4.28/"></script>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Helvetica,Arial,sans-serif;background:#f5f5f5;color:#333}.h{background:#1B3A5C;color:#fff;padding:14px 20px}.h h1{font-size:20px}.c{background:#fff;padding:16px 20px;border-bottom:2px solid #1B3A5C;display:flex;gap:10px;align-items:center}.c input{padding:8px 12px;font-size:14px;border:2px solid #ccc;border-radius:4px;width:180px}.b{background:#1B3A5C;color:#fff;border:none;padding:8px 20px;font-size:14px;border-radius:4px;cursor:pointer;font-weight:bold}.b:hover{background:#2a5580}#s{padding:10px 20px;font-size:13px;color:#666;display:none}#r{padding:20px;display:none}.rc{background:#fff;max-width:1100px;margin:0 auto;border:1px solid #ddd;border-radius:4px;overflow:hidden}.rh{background:#1B3A5C;color:#fff;padding:14px 20px}.rh h2{font-size:20px;margin:0}.rb{padding:16px 20px}.ig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 20px;margin-bottom:16px;font-size:13px}.ig b{color:#1B3A5C}.rb h3{color:#1B3A5C;font-size:14px;margin:16px 0 8px}table{width:100%;border-collapse:collapse;font-size:11px}thead th{background:#1B3A5C;color:#fff;padding:6px 4px;text-align:center;border:1px solid #1B3A5C}thead th:first-child{text-align:left}tbody td{padding:4px;text-align:center;border:1px solid #CCC}tbody td:first-child{text-align:left}tbody tr:nth-child(even){background:#F0F0F0}.t{background:#E8E8E8!important;font-weight:bold}.f{margin-top:20px;text-align:center;font-size:10px;color:#999;border-top:1px solid #CCC;padding-top:6px}.np{text-align:center;margin:8px}.bp{background:#2ecc71;color:#fff;border:none;padding:8px 20px;font-size:14px;border-radius:4px;cursor:pointer}@media print{.h,.c,#s,.np{display:none!important}#r{padding:0}.rc{border:none}@page{size:landscape;margin:.5in}}</style></head>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Helvetica,Arial,sans-serif;background:#f5f5f5;color:#333}
+.h{background:#1B3A5C;color:#fff;padding:14px 20px}
+.h h1{font-size:20px}
+.c{background:#fff;padding:16px 20px;border-bottom:2px solid #1B3A5C;display:flex;gap:10px;align-items:center}
+.c input{padding:8px 12px;font-size:14px;border:2px solid #ccc;border-radius:4px;width:180px}
+.b{background:#1B3A5C;color:#fff;border:none;padding:8px 20px;font-size:14px;border-radius:4px;cursor:pointer;font-weight:bold}
+.b:hover{background:#2a5580}
+#s{padding:10px 20px;font-size:13px;color:#666;display:none}
+#r{padding:20px;display:none}
+.rc{background:#fff;max-width:1100px;margin:0 auto;border:1px solid #ddd;border-radius:4px;overflow:hidden}
+.rh{background:#1B3A5C;color:#fff;padding:14px 20px}
+.rh h2{font-size:20px;margin:0}
+.rb{padding:16px 20px}
+.ig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 20px;margin-bottom:16px;font-size:13px}
+.ig b{color:#1B3A5C}
+.rb h3{color:#1B3A5C;font-size:14px;margin:16px 0 8px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead th{background:#1B3A5C;color:#fff;padding:6px 4px;text-align:center;border:1px solid #1B3A5C}
+thead th:first-child{text-align:left}
+tbody td{padding:4px;text-align:center;border:1px solid #CCC}
+tbody td:first-child{text-align:left}
+tbody tr:nth-child(even){background:#F0F0F0}
+.t{background:#E8E8E8!important;font-weight:bold}
+.f{margin-top:20px;text-align:center;font-size:10px;color:#999;border-top:1px solid #CCC;padding-top:6px}
+.np{text-align:center;margin:8px}
+.bp{background:#2ecc71;color:#fff;border:none;padding:8px 20px;font-size:14px;border-radius:4px;cursor:pointer}
+@media print{.h,.c,#s,.np{display:none!important}#r{padding:0}.rc{border:none}@page{size:landscape;margin:.5in}}
+</style></head>
 <body>
 <div class="h"><h1>TCCA Soil Report Generator</h1></div>
 <div class="c"><b style="color:#1B3A5C">Farm Number:</b> <input id="fn" value="1071"> <button class="b" id="go">Generate Report</button></div>
 <div id="s"></div><div id="r"></div>
 <script>
-require(["esri/config","esri/identity/OAuthInfo","esri/identity/IdentityManager","esri/request"],function(cfg,OAuthInfo,idm,esriRequest){
-cfg.portalUrl="https://tillamookfarm.maps.arcgis.com";
-var info=new OAuthInfo({appId:"PZTMDvs9PDdeYrAu",portalUrl:"https://tillamookfarm.maps.arcgis.com",popup:false});
+var PORTAL="https://tillamookfarm.maps.arcgis.com";
+var SERVER="https://services3.arcgis.com/6rtKUOn0HwWMTo5b/arcgis";
+var QUERY_URL=SERVER+"/rest/services/Dashboard_Internal_WFL1/FeatureServer/8/query";
+var APP_ID="PZTMDvs9PDdeYrAu";
+var serverToken="";
+
+require(["esri/config","esri/identity/OAuthInfo","esri/identity/IdentityManager"],function(cfg,OAuthInfo,idm){
+cfg.portalUrl=PORTAL;
+var info=new OAuthInfo({appId:APP_ID,portalUrl:PORTAL,popup:false});
 idm.registerOAuthInfos([info]);
-idm.checkSignInStatus("https://tillamookfarm.maps.arcgis.com/sharing").catch(function(){
-return idm.getCredential("https://tillamookfarm.maps.arcgis.com/sharing");
-}).then(function(){console.log("Signed in");});
+idm.checkSignInStatus(PORTAL+"/sharing").catch(function(){
+return idm.getCredential(PORTAL+"/sharing");
+}).then(function(cred){
+var portalToken=cred.token;
+fetch(PORTAL+"/sharing/rest/generateToken",{method:"POST",body:new URLSearchParams({token:portalToken,serverUrl:SERVER,f:"json"})}).then(function(r){return r.json();}).then(function(d){
+if(d.token){serverToken=d.token;console.log("Ready. Server token obtained.");}
+else{console.log("Token exchange failed");}
+});
+});
+});
 
 function fm(v,d){if(v==null||v==="")return"";return parseFloat(v).toFixed(d!=null?d:1);}
 
 document.getElementById("go").addEventListener("click",function(){
 var fn=document.getElementById("fn").value.trim();
 if(!fn){alert("Enter a farm number.");return;}
+if(!serverToken){alert("Still authenticating. Wait a moment and try again.");return;}
 var s=document.getElementById("s");s.style.display="block";s.textContent="Loading farm "+fn+"...";
 document.getElementById("go").disabled=true;
 
-esriRequest("https://services3.arcgis.com/6rtKUOn0HwWMTo5b/arcgis/rest/services/Dashboard_Internal_WFL1/FeatureServer/8/query",{
-method:"post",
-query:{where:"PrimProdNum='"+fn+"'",outFields:"PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel",returnGeometry:"false",f:"json"},
-responseType:"json"
-}).then(function(response){
-var d=response.data;
+fetch(QUERY_URL+"?where="+encodeURIComponent("PrimProdNum='"+fn+"'")+"&outFields=PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=false&f=json&token="+encodeURIComponent(serverToken)).then(function(r){return r.json();}).then(function(d){
+if(d.error){throw new Error(d.error.message);}
 if(!d.features||d.features.length===0){s.textContent="No pastures found for farm "+fn;document.getElementById("go").disabled=false;return;}
 var fs=d.features,fi=fs[0].attributes;
 var pr=fi.Producer||"Unknown",ca=fi.CAFO_Size||"Unknown";
@@ -44,5 +83,4 @@ document.getElementById("r").style.display="block";s.style.display="none";docume
 }).catch(function(e){s.textContent="Error: "+e.message;document.getElementById("go").disabled=false;});
 });
 document.getElementById("fn").addEventListener("keyup",function(e){if(e.key==="Enter")document.getElementById("go").click();});
-});
 </script></body></html>
