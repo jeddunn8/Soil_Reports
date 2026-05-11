@@ -24,9 +24,9 @@ if(!fn){alert("Enter a farm number.");return;}
 var s=document.getElementById("s");s.style.display="block";s.textContent="Loading farm "+fn+"...";
 document.getElementById("go").disabled=true;
 
-esriRequest("https://services3.arcgis.com/6rtKUOn0HwWMTo5b/arcgis/rest/services/Dashboard_Internal_WFL1/FeatureServer/0/query",{
+esriRequest("https://services3.arcgis.com/6rtKUOn0HwWMTo5b/arcgis/rest/services/Dashboard_Internal_WFL1/FeatureServer/8/query",{
 method:"post",
-query:{where:"PrimProdNu='"+fn+"'",outFields:"PrimProdNu,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel",returnGeometry:"false",f:"json"},
+query:{where:"PrimProdNum='"+fn+"'",outFields:"PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel",returnGeometry:"false",f:"json"},
 responseType:"json"
 }).then(function(response){
 var d=response.data;
