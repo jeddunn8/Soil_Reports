@@ -2,8 +2,10 @@
 <html><head>
 <script src="https://js.arcgis.com/4.28/"></script>
 <script>
-require(["esri/identity/OAuthInfo","esri/identity/IdentityManager"],function(OAuthInfo,idm){
-idm.setOAuthResponseHash(window.location.hash);
+require(["esri/identity/IdentityManager"],function(esriId){
+var hash=window.location.hash;
+if(!hash&&window.location.search){hash=window.location.search.replace("?","#");}
+esriId.setOAuthResponseHash(hash);
 window.close();
 });
 </script>
