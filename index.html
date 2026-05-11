@@ -50,15 +50,71 @@ idm.registerOAuthInfos([info]);
 idm.checkSignInStatus(PORTAL+"/sharing").catch(function(){
 return idm.getCredential(PORTAL+"/sharing");
 }).then(function(cred){
-var portalToken=cred.token;
-fetch(PORTAL+"/sharing/rest/generateToken",{method:"POST",body:new URLSearchParams({token:portalToken,serverUrl:SERVER,f:"json"})}).then(function(r){return r.json();}).then(function(d){
+fetch(PORTAL+"/sharing/rest/generateToken",{method:"POST",body:new URLSearchParams({token:cred.token,serverUrl:SERVER,f:"json"})}).then(function(r){return r.json();}).then(function(d){
 if(d.token){serverToken=d.token;console.log("Ready. Server token obtained.");}
-else{console.log("Token exchange failed");}
 });
 });
 });
 
 function fm(v,d){if(v==null||v==="")return"";return parseFloat(v).toFixed(d!=null?d:1);}
+
+function buildMap(fs,fn,pr,sr){
+return new Promise(function(resolve){
+var xs=[],ys=[];
+for(var i=0;i<fs.length;i++){
+var g=fs[i].geometry;
+if(g&&g.rings){for(var j=0;j<g.rings.length;j++){for(var k=0;k<g.rings[j].length;k++){xs.push(g.rings[j][k][0]);ys.push(g.rings[j][k][1]);}}}
+}
+if(xs.length===0){resolve("");return;}
+var xr=(Math.max.apply(null,xs)-Math.min.apply(null,xs))||0.001;
+var yr=(Math.max.apply(null,ys)-Math.min.apply(null,ys))||0.001;
+var ex={a:Math.min.apply(null,xs)-xr*0.15,b:Math.min.apply(null,ys)-yr*0.15,c:Math.max.apply(null,xs)+xr*0.15,d:Math.max.apply(null,ys)+yr*0.15};
+var W=1000,H=600;
+var cv=document.createElement("canvas");cv.width=W;cv.height=H;
+var cx=cv.getContext("2d");
+var wk=(sr&&sr.wkid)?sr.wkid:4326;
+var bmUrl="https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox="+ex.a+","+ex.b+","+ex.c+","+ex.d+"&bboxSR="+wk+"&size="+W+","+H+"&imageSR="+wk+"&format=png&f=image";
+
+function drawOverlay(){
+for(var i=0;i<fs.length;i++){
+var g=fs[i].geometry;
+if(!g||!g.rings)continue;
+for(var j=0;j<g.rings.length;j++){
+cx.beginPath();
+for(var k=0;k<g.rings[j].length;k++){
+var px=(g.rings[j][k][0]-ex.a)/(ex.c-ex.a)*W;
+var py=H-(g.rings[j][k][1]-ex.b)/(ex.d-ex.b)*H;
+if(k===0)cx.moveTo(px,py);else cx.lineTo(px,py);
+}
+cx.closePath();cx.fillStyle="rgba(46,204,113,0.35)";cx.fill();cx.strokeStyle="#FFFF00";cx.lineWidth=2;cx.stroke();
+}}
+cx.font="bold 10px Helvetica";cx.textAlign="center";cx.textBaseline="middle";
+for(var i=0;i<fs.length;i++){
+var g=fs[i].geometry;
+if(!g||!g.rings)continue;
+var ax=[],ay=[];
+for(var j=0;j<g.rings.length;j++){for(var k=0;k<g.rings[j].length;k++){ax.push(g.rings[j][k][0]);ay.push(g.rings[j][k][1]);}}
+var mx=0,my=0;for(var j=0;j<ax.length;j++){mx+=ax[j];my+=ay[j];}mx/=ax.length;my/=ay.length;
+var px=(mx-ex.a)/(ex.c-ex.a)*W;var py=H-(my-ex.b)/(ex.d-ex.b)*H;
+var lb=(fs[i].attributes.PastureNumber||"").toString().replace(fn+"-","");
+var m=cx.measureText(lb);
+cx.fillStyle="rgba(255,255,255,0.85)";cx.fillRect(px-m.width/2-2,py-6,m.width+4,12);
+cx.fillStyle="#1B3A5C";cx.fillText(lb,px,py);
+}
+cx.font="bold 16px Helvetica";cx.textAlign="center";
+var ti="Farm "+fn+": "+pr;var tm=cx.measureText(ti);
+cx.fillStyle="rgba(255,255,255,0.85)";cx.fillRect(W/2-tm.width/2-10,8,tm.width+20,26);
+cx.fillStyle="#1B3A5C";cx.fillText(ti,W/2,22);
+resolve('<h3>Farm Map</h3><img src="'+cv.toDataURL("image/png")+'" style="width:100%;max-width:950px;border:2px solid #1B3A5C;border-radius:4px;display:block;margin:0 auto">');
+}
+
+var img=new Image();
+img.crossOrigin="anonymous";
+img.onload=function(){cx.drawImage(img,0,0,W,H);drawOverlay();};
+img.onerror=function(){cx.fillStyle="#ddd";cx.fillRect(0,0,W,H);drawOverlay();};
+img.src=bmUrl;
+});
+}
 
 document.getElementById("go").addEventListener("click",function(){
 var fn=document.getElementById("fn").value.trim();
@@ -67,19 +123,23 @@ if(!serverToken){alert("Still authenticating. Wait a moment and try again.");ret
 var s=document.getElementById("s");s.style.display="block";s.textContent="Loading farm "+fn+"...";
 document.getElementById("go").disabled=true;
 
-fetch(QUERY_URL+"?where="+encodeURIComponent("PrimProdNum='"+fn+"'")+"&outFields=PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=false&f=json&token="+encodeURIComponent(serverToken)).then(function(r){return r.json();}).then(function(d){
+fetch(QUERY_URL+"?where="+encodeURIComponent("PrimProdNum='"+fn+"'")+"&outFields=PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=true&f=json&token="+encodeURIComponent(serverToken)).then(function(r){return r.json();}).then(function(d){
 if(d.error){throw new Error(d.error.message);}
 if(!d.features||d.features.length===0){s.textContent="No pastures found for farm "+fn;document.getElementById("go").disabled=false;return;}
 var fs=d.features,fi=fs[0].attributes;
 var pr=fi.Producer||"Unknown",ca=fi.CAFO_Size||"Unknown";
 var ta=0;for(var i=0;i<fs.length;i++){ta+=parseFloat(fs[i].attributes.Acreage||0);}
+s.textContent="Found "+fs.length+" pastures. Drawing map...";
+
+buildMap(fs,fn,pr,d.spatialReference).then(function(mapHtml){
 var rd=new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"});
 var ro="",ru=0;
 for(var i=0;i<fs.length;i++){var a=fs[i].attributes,ac=parseFloat(a.Acreage||0);ru+=ac;
 ro+="<tr><td>"+(a.PastureNumber||"")+"</td><td style='text-align:right'>"+fm(ac,2)+"</td><td>"+fm(a.Nitrate)+"</td><td>"+fm(a.Ammonia)+"</td><td>"+fm(a.Phosphate)+"</td><td>"+fm(a.Potassium,0)+"</td><td>"+fm(a.OrgCarbon)+"</td><td>"+fm(a.PHLevel)+"</td></tr>";}
 ro+='<tr class="t"><td>TOTAL</td><td style="text-align:right">'+ru.toFixed(2)+'</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
-document.getElementById("r").innerHTML='<div class="rc"><div class="rh"><h2>TCCA Soil Sampling Report</h2></div><div class="rb"><hr style="border:none;border-top:3px solid #1B3A5C;margin:0 0 12px"><div class="ig"><div><b>Farm:</b> '+fn+'</div><div><b>Producer:</b> '+pr+'</div><div><b>CAFO:</b> '+ca+'</div><div><b>Pastures:</b> '+fs.length+'</div><div><b>Acres:</b> '+ta.toFixed(2)+'</div><div><b>Date:</b> '+rd+'</div></div><h3>Soil Sample Results</h3><table><thead><tr><th>Pasture</th><th>Acres</th><th>Nitrate<br>(ppm)</th><th>Ammonia<br>(ppm)</th><th>Phosphate<br>(ppm)</th><th>Potassium<br>(ppm)</th><th>Org Matter<br>(%)</th><th>pH</th></tr></thead><tbody>'+ro+'</tbody></table><div class="f">Tillamook County Creamery Association, Natural Resources Department</div></div></div><div class="np"><button class="bp" onclick="window.print()">Print / Save as PDF</button></div>';
+document.getElementById("r").innerHTML='<div class="rc"><div class="rh"><h2>TCCA Soil Sampling Report</h2></div><div class="rb"><hr style="border:none;border-top:3px solid #1B3A5C;margin:0 0 12px"><div class="ig"><div><b>Farm:</b> '+fn+'</div><div><b>Producer:</b> '+pr+'</div><div><b>CAFO:</b> '+ca+'</div><div><b>Pastures:</b> '+fs.length+'</div><div><b>Acres:</b> '+ta.toFixed(2)+'</div><div><b>Date:</b> '+rd+'</div></div>'+mapHtml+'<h3>Soil Sample Results</h3><table><thead><tr><th>Pasture</th><th>Acres</th><th>Nitrate<br>(ppm)</th><th>Ammonia<br>(ppm)</th><th>Phosphate<br>(ppm)</th><th>Potassium<br>(ppm)</th><th>Org Matter<br>(%)</th><th>pH</th></tr></thead><tbody>'+ro+'</tbody></table><div class="f">Tillamook County Creamery Association, Natural Resources Department</div></div></div><div class="np"><button class="bp" onclick="window.print()">Print / Save as PDF</button></div>';
 document.getElementById("r").style.display="block";s.style.display="none";document.getElementById("go").disabled=false;
+});
 }).catch(function(e){s.textContent="Error: "+e.message;document.getElementById("go").disabled=false;});
 });
 document.getElementById("fn").addEventListener("keyup",function(e){if(e.key==="Enter")document.getElementById("go").click();});
