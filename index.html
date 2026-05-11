@@ -8,26 +8,27 @@
 <div class="c"><b style="color:#1B3A5C">Farm Number:</b> <input id="fn" value="1071"> <button class="b" id="go">Generate Report</button></div>
 <div id="s"></div><div id="r"></div>
 <script>
-var QU="https://services3.arcgis.com/6rtKUOn0HwWMTo5b/arcgis/rest/services/Dashboard_Internal_WFL1/FeatureServer/0/query";
-var tk="";
-require(["esri/config","esri/identity/OAuthInfo","esri/identity/IdentityManager"],function(cfg,OAuthInfo,idm){
+require(["esri/config","esri/identity/OAuthInfo","esri/identity/IdentityManager","esri/request"],function(cfg,OAuthInfo,idm,esriRequest){
 cfg.portalUrl="https://tillamookfarm.maps.arcgis.com";
 var info=new OAuthInfo({appId:"7f35031af6dc4fb790a897ff08403f44",portalUrl:"https://tillamookfarm.maps.arcgis.com",popup:false});
 idm.registerOAuthInfos([info]);
-idm.checkSignInStatus("https://tillamookfarm.maps.arcgis.com/sharing").then(function(c){tk=c.token;}).catch(function(){
-idm.getCredential("https://tillamookfarm.maps.arcgis.com/sharing").then(function(c){tk=c.token;});
-});
-});
+idm.checkSignInStatus("https://tillamookfarm.maps.arcgis.com/sharing").catch(function(){
+return idm.getCredential("https://tillamookfarm.maps.arcgis.com/sharing");
+}).then(function(){console.log("Signed in");});
+
 function fm(v,d){if(v==null||v==="")return"";return parseFloat(v).toFixed(d!=null?d:1);}
+
 document.getElementById("go").addEventListener("click",function(){
 var fn=document.getElementById("fn").value.trim();
 if(!fn){alert("Enter a farm number.");return;}
 var s=document.getElementById("s");s.style.display="block";s.textContent="Loading farm "+fn+"...";
 document.getElementById("go").disabled=true;
-fetch(QU,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
-body:"where=PrimProdNu%3D%27"+fn+"%27&outFields=PrimProdNu,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=false&f=json&token="+tk
-}).then(function(r){return r.json();}).then(function(d){
-if(d.error){throw new Error(d.error.message);}
+
+esriRequest("https://services3.arcgis.com/6rtKUOn0HwWMTo5b/arcgis/rest/services/Dashboard_Internal_WFL1/FeatureServer/0/query",{
+query:{where:"PrimProdNu='"+fn+"'",outFields:"PrimProdNu,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel",returnGeometry:"false",f:"json"},
+responseType:"json"
+}).then(function(response){
+var d=response.data;
 if(!d.features||d.features.length===0){s.textContent="No pastures found for farm "+fn;document.getElementById("go").disabled=false;return;}
 var fs=d.features,fi=fs[0].attributes;
 var pr=fi.Producer||"Unknown",ca=fi.CAFO_Size||"Unknown";
@@ -42,4 +43,5 @@ document.getElementById("r").style.display="block";s.style.display="none";docume
 }).catch(function(e){s.textContent="Error: "+e.message;document.getElementById("go").disabled=false;});
 });
 document.getElementById("fn").addEventListener("keyup",function(e){if(e.key==="Enter")document.getElementById("go").click();});
+});
 </script></body></html>
