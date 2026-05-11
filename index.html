@@ -10,7 +10,7 @@
 <script>
 require(["esri/config","esri/identity/OAuthInfo","esri/identity/IdentityManager","esri/request"],function(cfg,OAuthInfo,idm,esriRequest){
 cfg.portalUrl="https://tillamookfarm.maps.arcgis.com";
-var info=new OAuthInfo({appId:"7f35031af6dc4fb790a897ff08403f44",portalUrl:"https://tillamookfarm.maps.arcgis.com",popup:false});
+var info=new OAuthInfo({appId:"PZTMDvs9PDdeYrAu",portalUrl:"https://tillamookfarm.maps.arcgis.com",popup:false});
 idm.registerOAuthInfos([info]);
 idm.checkSignInStatus("https://tillamookfarm.maps.arcgis.com/sharing").catch(function(){
 return idm.getCredential("https://tillamookfarm.maps.arcgis.com/sharing");
