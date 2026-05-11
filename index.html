@@ -66,24 +66,23 @@ var g=fs[i].geometry;
 if(g&&g.rings){for(var j=0;j<g.rings.length;j++){for(var k=0;k<g.rings[j].length;k++){xs.push(g.rings[j][k][0]);ys.push(g.rings[j][k][1]);}}}
 }
 if(xs.length===0){resolve("");return;}
-var xr=(Math.max.apply(null,xs)-Math.min.apply(null,xs))||0.001;
-var yr=(Math.max.apply(null,ys)-Math.min.apply(null,ys))||0.001;
-var xmin=Math.min.apply(null,xs)-xr*0.05;
-var ymin=Math.min.apply(null,ys)-yr*0.05;
-var xmax=Math.max.apply(null,xs)+xr*0.05;
-var ymax=Math.max.apply(null,ys)+yr*0.05;
-var dw=xmax-xmin;
-var dh=ymax-ymin;
-var targetRatio=W/H;
-var dataRatio=dw/dh;
-if(dataRatio<targetRatio){var newW=dh*targetRatio;var pad=(newW-dw)/2;xmin-=pad;xmax+=pad;}
-else{var newH=dw/targetRatio;var pad=(newH-dh)/2;ymin-=pad;ymax+=pad;}
-var ex={a:xmin,b:ymin,c:xmax,d:ymax};
-var W=1000,H=600;
+var xmin=Math.min.apply(null,xs),xmax=Math.max.apply(null,xs);
+var ymin=Math.min.apply(null,ys),ymax=Math.max.apply(null,ys);
+var dx=xmax-xmin||0.001;
+var dy=ymax-ymin||0.001;
+xmin-=dx*0.08;xmax+=dx*0.08;ymin-=dy*0.08;ymax+=dy*0.08;
+dx=xmax-xmin;dy=ymax-ymin;
+var cosLat=Math.cos((ymin+ymax)/2*Math.PI/180);
+var geoWidth=dx*cosLat;
+var geoHeight=dy;
+var maxPx=1000;
+var W,H;
+if(geoWidth>geoHeight){W=maxPx;H=Math.round(maxPx*geoHeight/geoWidth);}
+else{H=maxPx;W=Math.round(maxPx*geoWidth/geoHeight);}
+if(W<400)W=400;if(H<400)H=400;
 var cv=document.createElement("canvas");cv.width=W;cv.height=H;
 var cx=cv.getContext("2d");
-var wk=(sr&&sr.wkid)?sr.wkid:102100;
-var bmUrl="https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox="+ex.a+","+ex.b+","+ex.c+","+ex.d+"&bboxSR="+wk+"&size="+W+","+H+"&imageSR="+wk+"&format=png&f=image";
+var bmUrl="https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox="+xmin+","+ymin+","+xmax+","+ymax+"&bboxSR=4326&size="+W+","+H+"&imageSR=4326&format=png&f=image";
 
 function drawOverlay(){
 for(var i=0;i<fs.length;i++){
@@ -92,8 +91,8 @@ if(!g||!g.rings)continue;
 for(var j=0;j<g.rings.length;j++){
 cx.beginPath();
 for(var k=0;k<g.rings[j].length;k++){
-var px=(g.rings[j][k][0]-ex.a)/(ex.c-ex.a)*W;
-var py=H-(g.rings[j][k][1]-ex.b)/(ex.d-ex.b)*H;
+var px=(g.rings[j][k][0]-xmin)/(xmax-xmin)*W;
+var py=H-(g.rings[j][k][1]-ymin)/(ymax-ymin)*H;
 if(k===0)cx.moveTo(px,py);else cx.lineTo(px,py);
 }
 cx.closePath();cx.fillStyle="rgba(46,204,113,0.5)";cx.fill();cx.strokeStyle="#FFFF00";cx.lineWidth=3;cx.stroke();
@@ -105,7 +104,7 @@ if(!g||!g.rings)continue;
 var ax=[],ay=[];
 for(var j=0;j<g.rings.length;j++){for(var k=0;k<g.rings[j].length;k++){ax.push(g.rings[j][k][0]);ay.push(g.rings[j][k][1]);}}
 var mx=0,my=0;for(var j=0;j<ax.length;j++){mx+=ax[j];my+=ay[j];}mx/=ax.length;my/=ay.length;
-var px=(mx-ex.a)/(ex.c-ex.a)*W;var py=H-(my-ex.b)/(ex.d-ex.b)*H;
+var px=(mx-xmin)/(xmax-xmin)*W;var py=H-(my-ymin)/(ymax-ymin)*H;
 var lb=(fs[i].attributes.PastureNumber||"").toString().replace(fn+"-","");
 var m=cx.measureText(lb);
 cx.fillStyle="rgba(255,255,255,0.85)";cx.fillRect(px-m.width/2-2,py-6,m.width+4,12);
@@ -133,7 +132,7 @@ if(!serverToken){alert("Still authenticating. Wait a moment and try again.");ret
 var s=document.getElementById("s");s.style.display="block";s.textContent="Loading farm "+fn+"...";
 document.getElementById("go").disabled=true;
 
-fetch(QUERY_URL+"?where="+encodeURIComponent("PrimProdNum='"+fn+"'")+"&outFields=PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=true&f=json&token="+encodeURIComponent(serverToken)).then(function(r){return r.json();}).then(function(d){
+fetch(QUERY_URL+"?where="+encodeURIComponent("PrimProdNum='"+fn+"'")+"&outFields=PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=true&outSR=4326&f=json&token="+encodeURIComponent(serverToken)).then(function(r){return r.json();}).then(function(d){
 if(d.error){throw new Error(d.error.message);}
 if(!d.features||d.features.length===0){s.textContent="No pastures found for farm "+fn;document.getElementById("go").disabled=false;return;}
 var fs=d.features,fi=fs[0].attributes;
