@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+https://js.arcgis.com/4.28/
+<script>
+require(["esri/identity/OAuthInfo","esri/identity/IdentityManager"],function(OAuthInfo,idm){
+idm.setOAuthResponseHash(window.location.hash);
+window.close();
+});
+</script>
+</head>
+<body></body>
+</html>
