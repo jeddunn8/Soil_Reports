@@ -68,7 +68,17 @@ if(g&&g.rings){for(var j=0;j<g.rings.length;j++){for(var k=0;k<g.rings[j].length
 if(xs.length===0){resolve("");return;}
 var xr=(Math.max.apply(null,xs)-Math.min.apply(null,xs))||0.001;
 var yr=(Math.max.apply(null,ys)-Math.min.apply(null,ys))||0.001;
-var ex={a:Math.min.apply(null,xs)-xr*0.05,b:Math.min.apply(null,ys)-yr*0.05,c:Math.max.apply(null,xs)+xr*0.05,d:Math.max.apply(null,ys)+yr*0.05};
+var xmin=Math.min.apply(null,xs)-xr*0.05;
+var ymin=Math.min.apply(null,ys)-yr*0.05;
+var xmax=Math.max.apply(null,xs)+xr*0.05;
+var ymax=Math.max.apply(null,ys)+yr*0.05;
+var dw=xmax-xmin;
+var dh=ymax-ymin;
+var targetRatio=W/H;
+var dataRatio=dw/dh;
+if(dataRatio<targetRatio){var newW=dh*targetRatio;var pad=(newW-dw)/2;xmin-=pad;xmax+=pad;}
+else{var newH=dw/targetRatio;var pad=(newH-dh)/2;ymin-=pad;ymax+=pad;}
+var ex={a:xmin,b:ymin,c:xmax,d:ymax};
 var W=1000,H=600;
 var cv=document.createElement("canvas");cv.width=W;cv.height=H;
 var cx=cv.getContext("2d");
