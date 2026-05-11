@@ -1,25 +1,24 @@
 <!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>TCCA Soil Report</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Helvetica,Arial,sans-serif;background:#f5f5f5;color:#333}.h{background:#1B3A5C;color:#fff;padding:14px 20px}.h h1{font-size:20px}.c{background:#fff;padding:16px 20px;border-bottom:2px solid #1B3A5C;display:flex;gap:10px;align-items:center}.c input{padding:8px 12px;font-size:14px;border:2px solid #ccc;border-radius:4px;width:180px}.b{background:#1B3A5C;color:#fff;border:none;padding:8px 20px;font-size:14px;border-radius:4px;cursor:pointer;font-weight:bold}.b:hover{background:#2a5580}#s{padding:10px 20px;font-size:13px;color:#666;display:none}#r{padding:20px;display:none}.rc{background:#fff;max-width:1100px;margin:0 auto;border:1px solid #ddd;border-radius:4px;overflow:hidden}.rh{background:#1B3A5C;color:#fff;padding:14px 20px}.rh h2{font-size:20px;margin:0}.rb{padding:16px 20px}.ig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 20px;margin-bottom:16px;font-size:13px}.ig b{color:#1B3A5C}.rb h3{color:#1B3A5C;font-size:14px;margin:16px 0 8px}table{width:100%;border-collapse:collapse;font-size:11px}thead th{background:#1B3A5C;color:#fff;padding:6px 4px;text-align:center;border:1px solid #1B3A5C}thead th:first-child{text-align:left}tbody td{padding:4px;text-align:center;border:1px solid #CCC}tbody td:first-child{text-align:left}tbody tr:nth-child(even){background:#F0F0F0}.t{background:#E8E8E8!important;font-weight:bold}.f{margin-top:20px;text-align:center;font-size:10px;color:#999;border-top:1px solid #CCC;padding-top:6px}.np{text-align:center;margin:8px}.bp{background:#2ecc71;color:#fff;border:none;padding:8px 20px;font-size:14px;border-radius:4px;cursor:pointer}@media print{.h,.c,#s,.np{display:none!important}#r{padding:0}.rc{border:none}@page{size:landscape;margin:.5in}}</style></head>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Helvetica,Arial,sans-serif;background:#f5f5f5;color:#333}.h{background:#1B3A5C;color:#fff;padding:14px 20px}.h h1{font-size:20px}.c{background:#fff;padding:16px 20px;border-bottom:2px solid #1B3A5C;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.c input{padding:8px 12px;font-size:14px;border:2px solid #ccc;border-radius:4px}.c b{color:#1B3A5C;font-size:13px}#fn{width:140px}#tk{width:300px;font-size:11px}.b{background:#1B3A5C;color:#fff;border:none;padding:8px 20px;font-size:14px;border-radius:4px;cursor:pointer;font-weight:bold}.b:hover{background:#2a5580}#s{padding:10px 20px;font-size:13px;color:#666;display:none}#r{padding:20px;display:none}.rc{background:#fff;max-width:1100px;margin:0 auto;border:1px solid #ddd;border-radius:4px;overflow:hidden}.rh{background:#1B3A5C;color:#fff;padding:14px 20px}.rh h2{font-size:20px;margin:0}.rb{padding:16px 20px}.ig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 20px;margin-bottom:16px;font-size:13px}.ig b{color:#1B3A5C}.rb h3{color:#1B3A5C;font-size:14px;margin:16px 0 8px}table{width:100%;border-collapse:collapse;font-size:11px}thead th{background:#1B3A5C;color:#fff;padding:6px 4px;text-align:center;border:1px solid #1B3A5C}thead th:first-child{text-align:left}tbody td{padding:4px;text-align:center;border:1px solid #CCC}tbody td:first-child{text-align:left}tbody tr:nth-child(even){background:#F0F0F0}.t{background:#E8E8E8!important;font-weight:bold}.f{margin-top:20px;text-align:center;font-size:10px;color:#999;border-top:1px solid #CCC;padding-top:6px}.np{text-align:center;margin:8px}.bp{background:#2ecc71;color:#fff;border:none;padding:8px 20px;font-size:14px;border-radius:4px;cursor:pointer}@media print{.h,.c,#s,.np{display:none!important}#r{padding:0}.rc{border:none}@page{size:landscape;margin:.5in}}</style></head>
 <body>
 <div class="h"><h1>TCCA Soil Report Generator</h1></div>
-<div class="c"><b style="color:#1B3A5C">Farm Number:</b> <input id="fn" value="1071"> <button class="b" id="go">Generate Report</button></div>
+<div class="c"><b>Farm #:</b><input id="fn" value="1071"><b>Token:</b><input id="tk" type="password" placeholder="Paste AGOL token here"><button class="b" id="go">Generate Report</button></div>
 <div id="s"></div><div id="r"></div>
 <script>
-var TK="axr7ytx1rqmtEc05xUCtBmA..NvJvAf6Rlj0sU1itXaP7y1iHAP0nEBhzkAnJ9PZgMCw4abG3zukTr6lZCGMkoBZCS79iMwBVIhrIvNeOFTU_fzylHHzgFnLYJSkzRnssv4gGPGgkqLZbM7ct7o1RlQYx_SxgQXnVJ5J_lwFaV1ltb5gPK3FnxaRnjWS2jEpSMRUzNu5C89g-DHTBTm-3L5Fu";
 var QU="https://services3.arcgis.com/6rtKUOn0HwWMTo5b/arcgis/rest/services/Dashboard_Internal_WFL1/FeatureServer/0/query";
-
+var st=localStorage.getItem("tcca_tk");if(st)document.getElementById("tk").value=st;
 function fm(v,d){if(v==null||v==="")return"";return parseFloat(v).toFixed(d!=null?d:1);}
-
 document.getElementById("go").addEventListener("click",function(){
 var fn=document.getElementById("fn").value.trim();
+var tk=document.getElementById("tk").value.trim();
 if(!fn){alert("Enter a farm number.");return;}
-var s=document.getElementById("s");
-s.style.display="block";s.textContent="Loading farm "+fn+"...";
+if(!tk){alert("Paste your AGOL token.");return;}
+localStorage.setItem("tcca_tk",tk);
+var s=document.getElementById("s");s.style.display="block";s.textContent="Loading farm "+fn+"...";
 document.getElementById("go").disabled=true;
-
 fetch(QU,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
-body:"where=PrimProdNu%3D%27"+fn+"%27&outFields=PrimProdNu,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=false&f=json&token="+TK
+body:"where=PrimProdNu%3D%27"+fn+"%27&outFields=PrimProdNu,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=false&f=json&token="+tk
 }).then(function(r){return r.json();}).then(function(d){
 if(d.error){throw new Error(d.error.message);}
 if(!d.features||d.features.length===0){s.textContent="No pastures found for farm "+fn;document.getElementById("go").disabled=false;return;}
@@ -28,8 +27,7 @@ var pr=fi.Producer||"Unknown",ca=fi.CAFO_Size||"Unknown";
 var ta=0;for(var i=0;i<fs.length;i++){ta+=parseFloat(fs[i].attributes.Acreage||0);}
 var rd=new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"});
 var ro="",ru=0;
-for(var i=0;i<fs.length;i++){
-var a=fs[i].attributes,ac=parseFloat(a.Acreage||0);ru+=ac;
+for(var i=0;i<fs.length;i++){var a=fs[i].attributes,ac=parseFloat(a.Acreage||0);ru+=ac;
 ro+="<tr><td>"+(a.PastureNumber||"")+"</td><td style='text-align:right'>"+fm(ac,2)+"</td><td>"+fm(a.Nitrate)+"</td><td>"+fm(a.Ammonia)+"</td><td>"+fm(a.Phosphate)+"</td><td>"+fm(a.Potassium,0)+"</td><td>"+fm(a.OrgCarbon)+"</td><td>"+fm(a.PHLevel)+"</td></tr>";}
 ro+='<tr class="t"><td>TOTAL</td><td style="text-align:right">'+ru.toFixed(2)+'</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
 document.getElementById("r").innerHTML='<div class="rc"><div class="rh"><h2>TCCA Soil Sampling Report</h2></div><div class="rb"><hr style="border:none;border-top:3px solid #1B3A5C;margin:0 0 12px"><div class="ig"><div><b>Farm:</b> '+fn+'</div><div><b>Producer:</b> '+pr+'</div><div><b>CAFO:</b> '+ca+'</div><div><b>Pastures:</b> '+fs.length+'</div><div><b>Acres:</b> '+ta.toFixed(2)+'</div><div><b>Date:</b> '+rd+'</div></div><h3>Soil Sample Results</h3><table><thead><tr><th>Pasture</th><th>Acres</th><th>Nitrate<br>(ppm)</th><th>Ammonia<br>(ppm)</th><th>Phosphate<br>(ppm)</th><th>Potassium<br>(ppm)</th><th>Org Matter<br>(%)</th><th>pH</th></tr></thead><tbody>'+ro+'</tbody></table><div class="f">Tillamook County Creamery Association, Natural Resources Department</div></div></div><div class="np"><button class="bp" onclick="window.print()">Print / Save as PDF</button></div>';
