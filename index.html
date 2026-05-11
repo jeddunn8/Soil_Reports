@@ -42,6 +42,12 @@ var SERVER="https://services3.arcgis.com/6rtKUOn0HwWMTo5b/arcgis";
 var QUERY_URL=SERVER+"/rest/services/Dashboard_Internal_WFL1/FeatureServer/8/query";
 var APP_ID="PZTMDvs9PDdeYrAu";
 var serverToken="";
+var authReady=false;
+
+function showMsg(m){var e=document.getElementById("s");e.style.display="block";e.textContent=m;}
+function hideMsg(){document.getElementById("s").style.display="none";}
+
+showMsg("Signing in to ArcGIS Online...");
 
 require(["esri/config","esri/identity/OAuthInfo","esri/identity/IdentityManager"],function(cfg,OAuthInfo,idm){
 cfg.portalUrl=PORTAL;
@@ -50,10 +56,12 @@ idm.registerOAuthInfos([info]);
 idm.checkSignInStatus(PORTAL+"/sharing").catch(function(){
 return idm.getCredential(PORTAL+"/sharing");
 }).then(function(cred){
+showMsg("Exchanging token...");
 fetch(PORTAL+"/sharing/rest/generateToken",{method:"POST",body:new URLSearchParams({token:cred.token,serverUrl:SERVER,f:"json"})}).then(function(r){return r.json();}).then(function(d){
-if(d.token){serverToken=d.token;console.log("Ready. Server token obtained.");}
+if(d.token){serverToken=d.token;authReady=true;hideMsg();console.log("Ready. Server token obtained.");}
+else{showMsg("Token exchange failed. Try refreshing the page.");}
 });
-});
+}).catch(function(e){showMsg("Sign in failed. Try refreshing the page.");});
 });
 
 function fm(v,d){if(v==null||v==="")return"";return parseFloat(v).toFixed(d!=null?d:1);}
@@ -76,7 +84,7 @@ for(var i=0;i<xs.length;i++){var m=toMerc(xs[i],ys[i]);mxs.push(m[0]);mys.push(m
 var xmin=Math.min.apply(null,mxs),xmax=Math.max.apply(null,mxs);
 var ymin=Math.min.apply(null,mys),ymax=Math.max.apply(null,mys);
 var dx=xmax-xmin||1;var dy=ymax-ymin||1;
-xmin-=dx*0.03;xmax+=dx*0.03;ymin-=dy*0.03;ymax+=dy*0.03;
+xmin-=dx*0.08;xmax+=dx*0.08;ymin-=dy*0.08;ymax+=dy*0.08;
 dx=xmax-xmin;dy=ymax-ymin;
 var W,H;
 if(dx>dy){W=1000;H=Math.round(1000*dy/dx);}else{H=1000;W=Math.round(1000*dx/dy);}
@@ -97,9 +105,9 @@ var px=(mc[0]-xmin)/(xmax-xmin)*W;
 var py=H-(mc[1]-ymin)/(ymax-ymin)*H;
 if(k===0)cx.moveTo(px,py);else cx.lineTo(px,py);
 }
-cx.closePath();cx.fillStyle="rgba(46,204,113,0.5)";cx.fill();cx.strokeStyle="#FFFF00";cx.lineWidth=2;cx.stroke();
+cx.closePath();cx.fillStyle="rgba(46,204,113,0.5)";cx.fill();cx.strokeStyle="#FFFF00";cx.lineWidth=3;cx.stroke();
 }}
-cx.font="bold 9px Helvetica";cx.textAlign="center";cx.textBaseline="middle";
+cx.font="bold 10px Helvetica";cx.textAlign="center";cx.textBaseline="middle";
 for(var i=0;i<fs.length;i++){
 var g=fs[i].geometry;
 if(!g||!g.rings)continue;
@@ -135,18 +143,18 @@ img.src=bmUrl;
 }
 document.getElementById("go").addEventListener("click",function(){
 var fn=document.getElementById("fn").value.trim();
-if(!fn){alert("Enter a farm number.");return;}
-if(!serverToken){alert("Still authenticating. Wait a moment and try again.");return;}
-var s=document.getElementById("s");s.style.display="block";s.textContent="Loading farm "+fn+"...";
+if(!fn){showMsg("Please enter a farm number.");return;}
+if(!authReady){showMsg("Still signing in. Please wait a moment and try again.");return;}
+showMsg("Loading farm "+fn+"...");
 document.getElementById("go").disabled=true;
 
 fetch(QUERY_URL+"?where="+encodeURIComponent("PrimProdNum='"+fn+"'")+"&outFields=PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=true&outSR=4326&f=json&token="+encodeURIComponent(serverToken)).then(function(r){return r.json();}).then(function(d){
 if(d.error){throw new Error(d.error.message);}
-if(!d.features||d.features.length===0){s.textContent="No pastures found for farm "+fn;document.getElementById("go").disabled=false;return;}
+if(!d.features||d.features.length===0){showMsg("No pastures found for farm "+fn);document.getElementById("go").disabled=false;return;}
 var fs=d.features,fi=fs[0].attributes;
 var pr=fi.Producer||"Unknown",ca=fi.CAFO_Size||"Unknown";
 var ta=0;for(var i=0;i<fs.length;i++){ta+=parseFloat(fs[i].attributes.Acreage||0);}
-s.textContent="Found "+fs.length+" pastures. Drawing map...";
+showMsg("Found "+fs.length+" pastures. Drawing map...");
 
 buildMap(fs,fn,pr).then(function(mapHtml){
 var rd=new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"});
@@ -155,9 +163,9 @@ for(var i=0;i<fs.length;i++){var a=fs[i].attributes,ac=parseFloat(a.Acreage||0);
 ro+="<tr><td>"+(a.PastureNumber||"")+"</td><td style='text-align:right'>"+fm(ac,2)+"</td><td>"+fm(a.Nitrate)+"</td><td>"+fm(a.Ammonia)+"</td><td>"+fm(a.Phosphate)+"</td><td>"+fm(a.Potassium,0)+"</td><td>"+fm(a.OrgCarbon)+"</td><td>"+fm(a.PHLevel)+"</td></tr>";}
 ro+='<tr class="t"><td>TOTAL</td><td style="text-align:right">'+ru.toFixed(2)+'</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
 document.getElementById("r").innerHTML='<div class="rc"><div class="rh"><h2>TCCA Soil Sampling Report</h2></div><div class="rb"><hr style="border:none;border-top:3px solid #1B3A5C;margin:0 0 12px"><div class="ig"><div><b>Farm:</b> '+fn+'</div><div><b>Producer:</b> '+pr+'</div><div><b>CAFO:</b> '+ca+'</div><div><b>Pastures:</b> '+fs.length+'</div><div><b>Acres:</b> '+ta.toFixed(2)+'</div><div><b>Date:</b> '+rd+'</div></div>'+mapHtml+'<h3>Soil Sample Results</h3><table><thead><tr><th>Pasture</th><th>Acres</th><th>Nitrate<br>(ppm)</th><th>Ammonia<br>(ppm)</th><th>Phosphate<br>(ppm)</th><th>Potassium<br>(ppm)</th><th>Org Matter<br>(%)</th><th>pH</th></tr></thead><tbody>'+ro+'</tbody></table><div class="f">Tillamook County Creamery Association, Natural Resources Department</div></div></div><div class="np"><button class="bp" onclick="window.print()">Print / Save as PDF</button></div>';
-document.getElementById("r").style.display="block";s.style.display="none";document.getElementById("go").disabled=false;
+document.getElementById("r").style.display="block";hideMsg();document.getElementById("go").disabled=false;
 });
-}).catch(function(e){s.textContent="Error: "+e.message;document.getElementById("go").disabled=false;});
+}).catch(function(e){showMsg("Error: "+e.message);document.getElementById("go").disabled=false;});
 });
 document.getElementById("fn").addEventListener("keyup",function(e){if(e.key==="Enter")document.getElementById("go").click();});
 </script></body></html>
