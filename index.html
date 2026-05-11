@@ -68,11 +68,11 @@ if(g&&g.rings){for(var j=0;j<g.rings.length;j++){for(var k=0;k<g.rings[j].length
 if(xs.length===0){resolve("");return;}
 var xr=(Math.max.apply(null,xs)-Math.min.apply(null,xs))||0.001;
 var yr=(Math.max.apply(null,ys)-Math.min.apply(null,ys))||0.001;
-var ex={a:Math.min.apply(null,xs)-xr*0.15,b:Math.min.apply(null,ys)-yr*0.15,c:Math.max.apply(null,xs)+xr*0.15,d:Math.max.apply(null,ys)+yr*0.15};
+var ex={a:Math.min.apply(null,xs)-xr*0.05,b:Math.min.apply(null,ys)-yr*0.05,c:Math.max.apply(null,xs)+xr*0.05,d:Math.max.apply(null,ys)+yr*0.05};
 var W=1000,H=600;
 var cv=document.createElement("canvas");cv.width=W;cv.height=H;
 var cx=cv.getContext("2d");
-var wk=4326;
+var wk=(sr&&sr.wkid)?sr.wkid:102100;
 var bmUrl="https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox="+ex.a+","+ex.b+","+ex.c+","+ex.d+"&bboxSR="+wk+"&size="+W+","+H+"&imageSR="+wk+"&format=png&f=image";
 
 function drawOverlay(){
@@ -86,7 +86,7 @@ var px=(g.rings[j][k][0]-ex.a)/(ex.c-ex.a)*W;
 var py=H-(g.rings[j][k][1]-ex.b)/(ex.d-ex.b)*H;
 if(k===0)cx.moveTo(px,py);else cx.lineTo(px,py);
 }
-cx.closePath();cx.fillStyle="rgba(46,204,113,0.35)";cx.fill();cx.strokeStyle="#FFFF00";cx.lineWidth=2;cx.stroke();
+cx.closePath();cx.fillStyle="rgba(46,204,113,0.5)";cx.fill();cx.strokeStyle="#FFFF00";cx.lineWidth=3;cx.stroke();
 }}
 cx.font="bold 10px Helvetica";cx.textAlign="center";cx.textBaseline="middle";
 for(var i=0;i<fs.length;i++){
@@ -123,7 +123,7 @@ if(!serverToken){alert("Still authenticating. Wait a moment and try again.");ret
 var s=document.getElementById("s");s.style.display="block";s.textContent="Loading farm "+fn+"...";
 document.getElementById("go").disabled=true;
 
-fetch(QUERY_URL+"?where="+encodeURIComponent("PrimProdNum='"+fn+"'")+"&outFields=PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=true&outSR=4326&f=json&token="+encodeURIComponent(serverToken)).then(function(r){return r.json();}).then(function(d){
+fetch(QUERY_URL+"?where="+encodeURIComponent("PrimProdNum='"+fn+"'")+"&outFields=PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=true&f=json&token="+encodeURIComponent(serverToken)).then(function(r){return r.json();}).then(function(d){
 if(d.error){throw new Error(d.error.message);}
 if(!d.features||d.features.length===0){s.textContent="No pastures found for farm "+fn;document.getElementById("go").disabled=false;return;}
 var fs=d.features,fi=fs[0].attributes;
