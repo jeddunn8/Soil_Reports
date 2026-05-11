@@ -1,13 +1,10 @@
 <!DOCTYPE html>
-<html>
-<head>
-https://js.arcgis.com/4.28/
+<html><head>
+<script src="https://js.arcgis.com/4.28/"></script>
 <script>
 require(["esri/identity/OAuthInfo","esri/identity/IdentityManager"],function(OAuthInfo,idm){
 idm.setOAuthResponseHash(window.location.hash);
 window.close();
 });
 </script>
-</head>
-<body></body>
-</html>
+</head><body></body></html>
