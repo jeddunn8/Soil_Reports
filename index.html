@@ -5,23 +5,23 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:Helvetica,Arial,sans-serif;background:#f5f5f5;color:#333}
-.h{background:#1B3A5C;color:#fff;padding:14px 20px}
+.h{background:#0F1F5E;color:#fff;padding:14px 20px}
 .h h1{font-size:20px}
-.c{background:#fff;padding:16px 20px;border-bottom:2px solid #1B3A5C;display:flex;gap:10px;align-items:center}
+.c{background:#fff;padding:16px 20px;border-bottom:2px solid #0F1F5E;display:flex;gap:10px;align-items:center}
 .c input{padding:8px 12px;font-size:14px;border:2px solid #ccc;border-radius:4px;width:180px}
-.b{background:#1B3A5C;color:#fff;border:none;padding:8px 20px;font-size:14px;border-radius:4px;cursor:pointer;font-weight:bold}
+.b{background:#0F1F5E;color:#fff;border:none;padding:8px 20px;font-size:14px;border-radius:4px;cursor:pointer;font-weight:bold}
 .b:hover{background:#2a5580}
 #s{padding:10px 20px;font-size:13px;color:#666;display:none}
 #r{padding:20px;display:none}
 .rc{background:#fff;max-width:1100px;margin:0 auto;border:1px solid #ddd;border-radius:4px;overflow:hidden}
-.rh{background:#1B3A5C;color:#fff;padding:14px 20px}
+.rh{background:#0F1F5E;color:#fff;padding:14px 20px}
 .rh h2{font-size:20px;margin:0}
 .rb{padding:16px 20px}
 .ig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 20px;margin-bottom:16px;font-size:13px}
-.ig b{color:#1B3A5C}
-.rb h3{color:#1B3A5C;font-size:14px;margin:16px 0 8px}
+.ig b{color:#0F1F5E}
+.rb h3{color:#0F1F5E;font-size:14px;margin:16px 0 8px}
 table{width:100%;border-collapse:collapse;font-size:11px}
-thead th{background:#1B3A5C;color:#fff;padding:6px 4px;text-align:center;border:1px solid #1B3A5C}
+thead th{background:#0F1F5E;color:#fff;padding:6px 4px;text-align:center;border:1px solid #0F1F5E}
 thead th:first-child{text-align:left}
 tbody td{padding:4px;text-align:center;border:1px solid #CCC}
 tbody td:first-child{text-align:left}
@@ -30,11 +30,12 @@ tbody tr:nth-child(even){background:#F0F0F0}
 .f{margin-top:20px;text-align:center;font-size:10px;color:#999;border-top:1px solid #CCC;padding-top:6px}
 .np{text-align:center;margin:8px}
 .bp{background:#2ecc71;color:#fff;border:none;padding:8px 20px;font-size:14px;border-radius:4px;cursor:pointer}
+td:nth-child(3){white-space:nowrap;} /* keeps date clean */
 @media print{.h,.c,#s,.np{display:none!important}#r{padding:0}.rc{border:none}@page{size:landscape;margin:.5in}}
 </style></head>
 <body>
 <div class="h"><h1>TCCA Soil Report Generator</h1></div>
-<div class="c"><b style="color:#1B3A5C">Farm Number:</b> <input id="fn" value="1071"> <button class="b" id="go">Generate Report</button></div>
+<div class="c"><b style="color:#0F1F5E">Farm Number:</b> <input id="fn" value="1071"> <button class="b" id="go">Generate Report</button></div>
 <div id="s"></div><div id="r"></div>
 <script>
 var PORTAL="https://tillamookfarm.maps.arcgis.com";
@@ -65,6 +66,13 @@ else{showStatus("Token exchange failed. Try refreshing.");}
 });
 
 function fm(v,d){if(v==null||v==="")return"";return parseFloat(v).toFixed(d!=null?d:1);}
+
+/* ✅ NEW: Date formatter */
+function fdate(v){
+if(!v)return"";
+var d=new Date(v);
+return (d.getMonth()+1)+"/"+d.getDate()+"/"+d.getFullYear();
+}
 
 function toMerc(lon,lat){
 var x=lon*20037508.34/180;
@@ -116,15 +124,13 @@ var px=(mc[0]-xmin)/(xmax-xmin)*W;var py=H-(mc[1]-ymin)/(ymax-ymin)*H;
 var lb=(fs[i].attributes.PastureNumber||"").toString().replace(fn+"-","");
 var mt=cx.measureText(lb);
 cx.fillStyle="rgba(255,255,255,0.85)";cx.fillRect(px-mt.width/2-2,py-6,mt.width+4,12);
-cx.fillStyle="#1B3A5C";cx.fillText(lb,px,py);}
+cx.fillStyle="#0F1F5E";cx.fillText(lb,px,py);}
 cx.font="bold 16px Helvetica";cx.textAlign="center";
 var ti="Farm "+fn+": "+pr;var tm=cx.measureText(ti);
 cx.fillStyle="rgba(255,255,255,0.85)";cx.fillRect(W/2-tm.width/2-10,8,tm.width+20,26);
-cx.fillStyle="#1B3A5C";cx.fillText(ti,W/2,22);
-var imgTag="<h3>Farm Map<"+"/h3>";
-imgTag+="<im"+"g sr"+"c=\"";
-imgTag+=cv.toDataURL("image/png");
-imgTag+="\" style=\"width:100%;max-width:950px;border:2px solid #1B3A5C;border-radius:4px;display:block;margin:0 auto\">";
+cx.fillStyle="#0F1F5E";cx.fillText(ti,W/2,22);
+var imgTag="<h3>Farm Map</h3>";
+imgTag+="<img src=\""+cv.toDataURL("image/png")+"\" style=\"width:100%;max-width:950px;border:2px solid #0F1F5E;border-radius:4px;display:block;margin:0 auto\">";
 resolve(imgTag);}
 var img=new Image();
 img.crossOrigin="anonymous";
@@ -140,7 +146,12 @@ if(!fn){showStatus("Please enter a farm number.");return;}
 if(!authReady){showStatus("Still signing in. Please wait a moment and try again.");return;}
 showStatus("Loading farm "+fn+"...");
 document.getElementById("go").disabled=true;
-fetch(QUERY_URL+"?where="+encodeURIComponent("PrimProdNum='"+fn+"'")+"&outFields=PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=true&outSR=4326&f=json&token="+encodeURIComponent(serverToken)).then(function(r){return r.json();}).then(function(d){
+
+/* ✅ updated query to include SoilLastTest2 */
+fetch(QUERY_URL+"?where="+encodeURIComponent("PrimProdNum='"+fn+"'")+"&outFields=PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,SoilLastTest2,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=true&outSR=4326&f=json&token="+encodeURIComponent(serverToken))
+
+.then(function(r){return r.json();})
+.then(function(d){
 if(d.error){throw new Error(d.error.message);}
 if(!d.features||d.features.length===0){showStatus("No pastures found for farm "+fn);document.getElementById("go").disabled=false;return;}
 var fs=d.features,fi=fs[0].attributes;
@@ -150,13 +161,21 @@ showStatus("Found "+fs.length+" pastures. Drawing map...");
 buildMap(fs,fn,pr).then(function(mapHtml){
 var rd=new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"});
 var ro="",ru=0;
+
+/* ✅ added Last Sample Date column */
 for(var i=0;i<fs.length;i++){var a=fs[i].attributes,ac=parseFloat(a.Acreage||0);ru+=ac;
-ro+="<tr><td>"+(a.PastureNumber||"")+"</td><td style='text-align:right'>"+fm(ac,2)+"</td><td>"+fm(a.Nitrate)+"</td><td>"+fm(a.Ammonia)+"</td><td>"+fm(a.Phosphate)+"</td><td>"+fm(a.Potassium,0)+"</td><td>"+fm(a.OrgCarbon)+"</td><td>"+fm(a.PHLevel)+"</td></tr>";}
-ro+='<tr class="t"><td>TOTAL</td><td style="text-align:right">'+ru.toFixed(2)+'</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
-document.getElementById("r").innerHTML='<div class="rc"><div class="rh"><h2>TCCA Soil Sampling Report</h2></div><div class="rb"><hr style="border:none;border-top:3px solid #1B3A5C;margin:0 0 12px"><div class="ig"><div><b>Farm:</b> '+fn+'</div><div><b>Producer:</b> '+pr+'</div><div><b>CAFO:</b> '+ca+'</div><div><b>Pastures:</b> '+fs.length+'</div><div><b>Acres:</b> '+ta.toFixed(2)+'</div><div><b>Date:</b> '+rd+'</div></div>'+mapHtml+'<h3>Soil Sample Results</h3><table><thead><tr><th>Pasture</th><th>Acres</th><th>Nitrate<br>(ppm)</th><th>Ammonia<br>(ppm)</th><th>Phosphate<br>(ppm)</th><th>Potassium<br>(ppm)</th><th>Org Matter<br>(%)</th><th>pH</th></tr></thead><tbody>'+ro+'</tbody></table><div class="f">Tillamook County Creamery Association, Natural Resources Department</div></div></div><div class="np"><button class="bp" onclick="window.print()">Print / Save as PDF</button></div>';
+ro+="<tr><td>"+(a.PastureNumber||"")+"</td><td style='text-align:right'>"+fm(ac,2)+"</td><td>"+fdate(a.SoilLastTest2)+"</td><td>"+fm(a.Nitrate)+"</td><td>"+fm(a.Ammonia)+"</td><td>"+fm(a.Phosphate)+"</td><td>"+fm(a.Potassium,0)+"</td><td>"+fm(a.OrgCarbon)+"</td><td>"+fm(a.PHLevel)+"</td></tr>";}
+
+/* ✅ fixed TOTAL row */
+ro+='<tr class="t"><td>TOTAL</td><td style="text-align:right">'+ru.toFixed(2)+'</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+
+/* ✅ updated header + footer */
+document.getElementById("r").innerHTML='<div class="rc"><div class="rh"><h2>TCCA Soil Sampling Report</h2></div><div class="rb"><hr style="border:none;border-top:3px solid #0F1F5E;margin:0 0 12px"><div class="ig"><div><b>Farm:</b> '+fn+'</div><div><b>Producer:</b> '+pr+'</div><div><b>CAFO:</b> '+ca+'</div><div><b>Pastures:</b> '+fs.length+'</div><div><b>Acres:</b> '+ta.toFixed(2)+'</div><div><b>Date:</b> '+rd+'</div></div>'+mapHtml+'<h3>Soil Sample Results</h3><table><thead><tr><th>Pasture</th><th>Acres</th><th>Last Sample Date</th><th>Nitrate<br>(ppm)</th><th>Ammonia<br>(ppm)</th><th>Phosphate<br>(ppm)</th><th>Potassium<br>(ppm)</th><th>Org Matter<br>(%)</th><th>pH</th></tr></thead><tbody>'+ro+'</tbody></table><div class="f">Tillamook County Creamery Association, Field Services</div></div></div><div class="np"><button class="bp" onclick="window.print()">Print / Save as PDF</button></div>';
+
 document.getElementById("r").style.display="block";hideStatus();document.getElementById("go").disabled=false;
 });
 }).catch(function(e){showStatus("Error: "+e.message);document.getElementById("go").disabled=false;});
 });
 document.getElementById("fn").addEventListener("keyup",function(e){if(e.key==="Enter")document.getElementById("go").click();});
 </script></body></html>
+``
