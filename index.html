@@ -27,7 +27,6 @@ body{font-family:Helvetica,Arial,sans-serif;background:#f5f5f5;color:#333}
 .rc{background:#fff;max-width:1100px;margin:0 auto;border:1px solid #ddd;border-radius:4px;overflow:hidden}
 
 .rh{background:#0F1F5E;color:#fff;padding:14px 20px}
-.rh h2{font-size:20px;margin:0}
 
 .rb{padding:16px 20px}
 
@@ -41,29 +40,17 @@ table{width:100%;border-collapse:collapse;font-size:11px}
 thead th{
 background:#0F1F5E;
 color:#fff;
-padding:6px 4px;
+padding:6px;
 text-align:center;
 border:1px solid #0F1F5E
 }
 
-thead th:first-child{text-align:left}
-
-tbody td{
-padding:4px;
-text-align:center;
-border:1px solid #CCC
-}
-
+tbody td{padding:4px;text-align:center;border:1px solid #CCC}
 tbody td:first-child{text-align:left}
 
-/* keeps date clean */
-td:nth-child(3){
-white-space:nowrap;
-text-align:center;
-}
+td:nth-child(3){white-space:nowrap;}
 
 tbody tr:nth-child(even){background:#F0F0F0}
-
 .t{background:#E8E8E8!important;font-weight:bold}
 
 .f{
@@ -75,36 +62,16 @@ border-top:1px solid #CCC;
 padding-top:6px
 }
 
-.np{text-align:center;margin:8px}
-
-.bp{
-background:#2ecc71;
-color:#fff;
-border:none;
-padding:8px 20px;
-font-size:14px;
-border-radius:4px;
-cursor:pointer
-}
-
-@media print{
-.h,.c,#s,.np{display:none!important}
-#r{padding:0}
-.rc{border:none}
-@page{size:landscape;margin:.5in}
-}
 </style>
 </head>
 
 <body>
 
-<div class="h">
-<h1>TCCA Soil Report Generator</h1>
-</div>
+<div class="h"><h1>TCCA Soil Report Generator</h1></div>
 
 <div class="c">
 <b style="color:#0F1F5E">Farm Number:</b>
-<input id="fn" value="1071">
+<input id="fn">
 <button class="b" id="go">Generate Report</button>
 </div>
 
@@ -126,63 +93,55 @@ function showStatus(m){
   e.style.display="block";
   e.textContent=m;
 }
-
-function hideStatus(){
-  document.getElementById("s").style.display="none";
-}
+function hideStatus(){document.getElementById("s").style.display="none";}
 
 function fm(v,d){
   if(v==null||v==="")return"";
-  return parseFloat(v).toFixed(d!=null?d:1);
+  return parseFloat(v).toFixed(d||1);
 }
 
-/* ✅ DATE FORMATTER */
+/* ✅ Date formatter */
 function fdate(v){
   if(!v) return "";
   var d=new Date(v);
   return (d.getMonth()+1)+"/"+d.getDate()+"/"+d.getFullYear();
 }
 
-showStatus("Signing in to ArcGIS Online...");
-
 require(["esri/config","esri/identity/OAuthInfo","esri/identity/IdentityManager"],
 function(cfg,OAuthInfo,idm){
 
 cfg.portalUrl=PORTAL;
 
-var info=new OAuthInfo({
-appId:APP_ID,
-portalUrl:PORTAL,
-popup:false
-});
-
+var info=new OAuthInfo({appId:APP_ID,portalUrl:PORTAL,popup:false});
 idm.registerOAuthInfos([info]);
 
-idm.checkSignInStatus(PORTAL+"/sharing").catch(function(){
-return idm.getCredential(PORTAL+"/sharing");
-}).then(function(cred){
+idm.getCredential(PORTAL+"/sharing").then(function(cred){
 
 fetch(PORTAL+"/sharing/rest/generateToken",{
 method:"POST",
-body:new URLSearchParams({
-token:cred.token,
-serverUrl:SERVER,
-f:"json"
-})
+body:new URLSearchParams({token:cred.token,serverUrl:SERVER,f:"json"})
 })
 .then(r=>r.json())
 .then(d=>{
-if(d.token){
 serverToken=d.token;
 authReady=true;
-hideStatus();
-}else{
-showStatus("Token exchange failed.");
-}
 });
 
 });
 });
+
+function buildMap(fs,fn,pr){
+return new Promise(function(resolve){
+
+if(!fs.length){resolve('');return;}
+
+var imgTag="<h3>Farm Map</h3>";
+imgTag+="<img src='https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=-124,45,-123,46&size=800,500&format=png' ";
+imgTag+="style='width:100%;max-width:900px;border:2px solid #0F1F5E'>";
+
+resolve(imgTag);
+});
+}
 
 document.getElementById("go").onclick=function(){
 
@@ -192,34 +151,30 @@ if(!fn){showStatus("Enter Farm Number");return;}
 fetch(
 QUERY_URL+
 "?where="+encodeURIComponent("PrimProdNum='"+fn+"'")+
-"&outFields=PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,SoilLastTest2,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel"+
-"&returnGeometry=false&f=json&token="+serverToken
+"&outFields=PastureNumber,Acreage,SoilLastTest2,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel,Producer,CAFO_Size"+
+"&f=json&token="+serverToken
 )
+
 .then(r=>r.json())
 .then(function(d){
 
 if(!d.features){showStatus("No data");return;}
 
 var fs=d.features;
-var pr=fs[0].attributes.Producer || "";
-var ca=fs[0].attributes.CAFO_Size || "";
+var pr=fs[0].attributes.Producer;
+var ca=fs[0].attributes.CAFO_Size;
 
-var ta=0;
-var ru=0;
-var ro="";
+var ta=0, ro="";
 
 for(var i=0;i<fs.length;i++){
-
 var a=fs[i].attributes;
 var ac=parseFloat(a.Acreage||0);
-
-ru+=ac;
 ta+=ac;
 
 ro+=`
 <tr>
-<td>${a.PastureNumber||""}</td>
-<td style="text-align:right">${fm(ac,2)}</td>
+<td>${a.PastureNumber}</td>
+<td>${fm(ac,2)}</td>
 <td>${fdate(a.SoilLastTest2)}</td>
 <td>${fm(a.Nitrate)}</td>
 <td>${fm(a.Ammonia)}</td>
@@ -230,26 +185,19 @@ ro+=`
 </tr>`;
 }
 
-/* ✅ FIXED TOTAL ROW */
 ro+=`
 <tr class="t">
 <td>TOTAL</td>
-<td style="text-align:right">${ru.toFixed(2)}</td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>${ta.toFixed(2)}</td>
+<td></td><td></td><td></td><td></td><td></td><td></td><td></td>
 </tr>`;
+
+buildMap(fs,fn,pr).then(function(mapHtml){
 
 document.getElementById("r").innerHTML=
 `
 <div class="rc">
-<div class="rh">
-<h2>TCCA Soil Sampling Report</h2>
-</div>
+<div class="rh"><h2>TCCA Soil Sampling Report</h2></div>
 
 <div class="rb">
 
@@ -262,6 +210,8 @@ document.getElementById("r").innerHTML=
 <div><b>Date:</b> ${new Date().toLocaleDateString()}</div>
 </div>
 
+${mapHtml}
+
 <h3>Soil Sample Results</h3>
 
 <table>
@@ -270,38 +220,30 @@ document.getElementById("r").innerHTML=
 <th>Pasture</th>
 <th>Acres</th>
 <th>Last Sample Date</th>
-<th>Nitrate<br>(ppm)</th>
-<th>Ammonia<br>(ppm)</th>
-<th>Phosphate<br>(ppm)</th>
-<th>Potassium<br>(ppm)</th>
-<th>Org Matter<br>(%)</th>
+<th>Nitrate</th>
+<th>Ammonia</th>
+<th>Phosphate</th>
+<th>Potassium</th>
+<th>Org Matter</th>
 <th>pH</th>
 </tr>
 </thead>
 
-<tbody>
-${ro}
-</tbody>
+<tbody>${ro}</tbody>
+
 </table>
 
-/* ✅ UPDATED FOOTER */
 <div class="f">
 Tillamook County Creamery Association, Field Services
 </div>
 
 </div>
 </div>
-
-<div class="np">
-<button class="bp" onclick="window.print()">
-Print / Save as PDF
-</button>
-</div>
 `;
 
 document.getElementById("r").style.display="block";
-hideStatus();
 
+});
 });
 };
 
