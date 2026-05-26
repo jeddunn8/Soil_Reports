@@ -5,14 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TCCA Soil Report Generator</title>
 <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
-<script src="https://js.arcgis.com/4.28/"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f4f4f4;color:#333}
 .header{background:#1B3A5C;color:#fff;padding:20px 30px;display:flex;align-items:center;gap:20px}
 .header h1{font-size:24px;font-weight:600}
 .container{max-width:1100px;margin:30px auto;padding:0 20px}
-.input-section{background:#fff;border-radius:8px;padding:25px;box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:20px;display:flex;gap:15px;align-items:flex-end}
+.input-section{background:#fff;border-radius:8px;padding:25px;box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:20px;display:flex;gap:15px;align-items:flex-end;flex-wrap:wrap}
 .input-section label{font-weight:600;display:block;margin-bottom:5px;color:#1B3A5C}
 .input-section input{padding:10px 15px;border:2px solid #ddd;border-radius:6px;font-size:16px;width:200px}
 .input-section input:focus{border-color:#1B3A5C;outline:none}
@@ -47,11 +46,20 @@ tr:hover{background:#e3f2fd}
 .flag-high{color:#c62828;font-weight:700}
 .flag-low{color:#c62828;font-weight:700}
 .flag-warn{color:#e65100;font-weight:700}
+.trends-section{margin-top:30px;border-top:3px solid #1B3A5C;padding-top:20px}
+.trends-section h2{color:#1B3A5C;font-size:20px;margin-bottom:5px}
+.trends-section .trends-note{color:#666;font-size:13px;margin-bottom:20px}
+.pasture-trend{margin-bottom:25px;page-break-inside:avoid}
+.pasture-trend h3{color:#1B3A5C;font-size:15px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #ddd}
+.mini-charts{display:flex;gap:8px;flex-wrap:wrap}
+.mini-chart-wrap{text-align:center}
+.mini-chart-label{font-size:11px;font-weight:600;color:#1B3A5C;margin-bottom:2px}
 @media print{
   .no-print{display:none!important}
   body{background:#fff}
   .report{box-shadow:none;padding:15px}
   .header{padding:10px 20px}
+  .pasture-trend{page-break-inside:avoid}
 }
 </style>
 </head>
@@ -71,6 +79,7 @@ tr:hover{background:#e3f2fd}
 <div id="status" class="no-print"></div>
 <div id="reportOutput"></div>
 </div>
+<script src="https://js.arcgis.com/4.28/"></script>
 <script>
 require([
   "esri/identity/OAuthInfo",
@@ -87,9 +96,25 @@ require([
 
   var portalUrl = "https://tillamookfarm.maps.arcgis.com";
   var serverBase = "https://services3.arcgis.com/6rtKUOn0HwWMTo5b/arcgis";
-  var layerUrl = serverBase + "/rest/services/Dashboard_Internal_WFL1/FeatureServer/8/query";
+  var featureBase = serverBase + "/rest/services/Dashboard_Internal_WFL1/FeatureServer/";
+  var layerUrl = featureBase + "8/query";
+
+  var yearTables = [
+    {year:2021, id:13},
+    {year:2022, id:12},
+    {year:2023, id:14},
+    {year:2024, id:15},
+    {year:2025, id:16}
+  ];
 
   var serverToken = null;
+  var oct1cutoff = null;
+
+  (function(){
+    var now = new Date();
+    var cy = now.getFullYear();
+    oct1cutoff = new Date(cy - 3, 9, 1);
+  })();
 
   IdentityManager.checkSignInStatus(portalUrl + "/sharing").then(function(cred){
     return exchangeToken(cred.token);
@@ -102,8 +127,7 @@ require([
   function exchangeToken(portalToken){
     var tokenUrl = portalUrl + "/sharing/rest/generateToken";
     var body = "token=" + encodeURIComponent(portalToken)
-      + "&serverUrl=" + encodeURIComponent(serverBase)
-      + "&f=json";
+      + "&serverUrl=" + encodeURIComponent(serverBase) + "&f=json";
     return fetch(tokenUrl, {
       method: "POST",
       headers: {"Content-Type": "application/x-www-form-urlencoded"},
@@ -135,8 +159,7 @@ require([
     document.getElementById("reportOutput").innerHTML = "";
     document.getElementById("printBtn").style.display = "none";
 
-    var url = layerUrl
-      + "?where=PrimProdNum%3D" + encodeURIComponent("'" + farmNum + "'")
+    var url = layerUrl + "?where=PrimProdNum%3D" + encodeURIComponent(farmNum)
       + "&outFields=*&outSR=4326&f=json&token=" + serverToken;
 
     fetch(url).then(function(r){ return r.json(); }).then(function(data){
@@ -145,8 +168,9 @@ require([
         return;
       }
       buildReport(data.features, farmNum);
-      document.getElementById("status").textContent = "Report generated.";
+      document.getElementById("status").textContent = "Building trend charts...";
       document.getElementById("printBtn").style.display = "inline-block";
+      fetchTrends(data.features);
     }).catch(function(err){
       document.getElementById("status").textContent = "Error: " + err.message;
     });
@@ -159,41 +183,32 @@ require([
     var totalAcres = 0;
     features.forEach(function(f){ totalAcres += (f.attributes.Acreage || 0); });
 
-    var now = new Date();
-    var currentYear = now.getFullYear();
-    var oct1 = new Date(currentYear, 9, 1);
-    var cutoff = new Date(currentYear - 3, 9, 1);
-    var anyDue = false;
-    var dueCount = 0;
-    var noTestCount = 0;
-
+    var anyDue = false, dueCount = 0, noTestCount = 0;
     features.forEach(function(f){
       var a = f.attributes;
       if(a.FieldStatus && a.FieldStatus !== "Active Use") return;
-      var lastTest = a.SoilLastTest2;
-      if(!lastTest){ noTestCount++; anyDue = true; return; }
-      var testDate = new Date(lastTest);
-      if(testDate < cutoff){ dueCount++; anyDue = true; }
+      var lt = a.SoilLastTest2;
+      if(!lt){ noTestCount++; anyDue = true; return; }
+      if(new Date(lt) < oct1cutoff){ dueCount++; anyDue = true; }
     });
 
     var samplingStatus, samplingClass;
     if(anyDue){
-      var details = [];
-      if(dueCount > 0) details.push(dueCount + " field(s) overdue");
-      if(noTestCount > 0) details.push(noTestCount + " with no test date");
-      samplingStatus = "Due for Fall Sampling (" + details.join(", ") + ")";
+      var d = [];
+      if(dueCount > 0) d.push(dueCount + " field(s) overdue");
+      if(noTestCount > 0) d.push(noTestCount + " with no test date");
+      samplingStatus = "Due for Fall Sampling (" + d.join(", ") + ")";
       samplingClass = "sampling-due";
     } else {
       samplingStatus = "Sampling Current, All Fields Within 3-Year Window";
       samplingClass = "sampling-current";
     }
 
-    var dateStr = now.toLocaleDateString("en-US", {year:"numeric",month:"long",day:"numeric"});
+    var dateStr = new Date().toLocaleDateString("en-US", {year:"numeric",month:"long",day:"numeric"});
 
-    var html = '<div class="report">';
+    var html = '<div class="report" id="mainReport">';
     html += '<div class="report-title">Soil Sampling Report: ' + producer + '</div>';
     html += '<div class="report-subtitle">Generated ' + dateStr + '</div>';
-
     html += '<div class="info-grid">';
     html += '<div class="info-item"><span class="info-label">Farm Number:</span><span class="info-value">' + farmNum + '</span></div>';
     html += '<div class="info-item"><span class="info-label">Producer:</span><span class="info-value">' + producer + '</span></div>';
@@ -215,8 +230,7 @@ require([
     html += '<div class="legend-item">Potassium &gt; 800 ppm</div>';
     html += '<div class="legend-item">Org Matter &lt; 5%</div>';
     html += '<div class="legend-item">pH &lt; 5.5 or &gt; 7.5</div>';
-    html += '</div>';
-    html += '</div>';
+    html += '</div></div>';
 
     // Map
     var allCoords = [];
@@ -230,36 +244,26 @@ require([
     if(allCoords.length > 0){
       var minLon=Infinity,maxLon=-Infinity,minLat=Infinity,maxLat=-Infinity;
       allCoords.forEach(function(c){
-        if(c[0]<minLon)minLon=c[0]; if(c[0]>maxLon)maxLon=c[0];
-        if(c[1]<minLat)minLat=c[1]; if(c[1]>maxLat)maxLat=c[1];
+        if(c[0]<minLon)minLon=c[0];if(c[0]>maxLon)maxLon=c[0];
+        if(c[1]<minLat)minLat=c[1];if(c[1]>maxLat)maxLat=c[1];
       });
-
-      var pad=0.002;
-      minLon-=pad;maxLon+=pad;minLat-=pad;maxLat+=pad;
-
-      var blMerc=toMerc(minLon,minLat);
-      var trMerc=toMerc(maxLon,maxLat);
-
+      var pad=0.002;minLon-=pad;maxLon+=pad;minLat-=pad;maxLat+=pad;
+      var blM=toMerc(minLon,minLat),trM=toMerc(maxLon,maxLat);
       var cw=900,ch=600;
-      var mercW=trMerc[0]-blMerc[0];
-      var mercH=trMerc[1]-blMerc[1];
-      var ratio=mercW/mercH;
+      var mW=trM[0]-blM[0],mH=trM[1]-blM[1];
+      var ratio=mW/mH;
       if(ratio>cw/ch){ch=Math.round(cw/ratio);}else{cw=Math.round(ch*ratio);}
-
-      var basemapUrl="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export"
-        +"?bbox="+blMerc[0]+","+blMerc[1]+","+trMerc[0]+","+trMerc[1]
+      var bmUrl="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export"
+        +"?bbox="+blM[0]+","+blM[1]+","+trM[0]+","+trM[1]
         +"&bboxSR=102100&imageSR=102100&size="+cw+","+ch+"&format=png32&f=image";
 
-      html+='<div class="map-container">';
-      html+='<canvas id="mapCanvas" width="'+cw+'" height="'+ch+'"></canvas>';
-      html+='</div>';
+      html+='<div class="map-container"><canvas id="mapCanvas" width="'+cw+'" height="'+ch+'"></canvas></div>';
 
       setTimeout(function(){
         var canvas=document.getElementById("mapCanvas");
         if(!canvas) return;
         var ctx=canvas.getContext("2d");
-        var img=new Image();
-        img.crossOrigin="anonymous";
+        var img=new Image();img.crossOrigin="anonymous";
         img.onload=function(){
           ctx.drawImage(img,0,0,cw,ch);
           features.forEach(function(f){
@@ -268,38 +272,31 @@ require([
               ctx.beginPath();
               ring.forEach(function(pt,i){
                 var m=toMerc(pt[0],pt[1]);
-                var px=(m[0]-blMerc[0])/mercW*cw;
-                var py=ch-(m[1]-blMerc[1])/mercH*ch;
+                var px=(m[0]-blM[0])/mW*cw;
+                var py=ch-(m[1]-blM[1])/mH*ch;
                 if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
               });
               ctx.closePath();
-              ctx.fillStyle="rgba(45,132,59,0.35)";
-              ctx.fill();
-              ctx.strokeStyle="#FFD700";
-              ctx.lineWidth=2.5;
-              ctx.stroke();
+              ctx.fillStyle="rgba(45,132,59,0.35)";ctx.fill();
+              ctx.strokeStyle="#FFD700";ctx.lineWidth=2.5;ctx.stroke();
             });
-
-            // Label
             var rings=f.geometry.rings[0];
             var cx=0,cy=0;
             rings.forEach(function(pt){cx+=pt[0];cy+=pt[1];});
             cx/=rings.length;cy/=rings.length;
             var cm=toMerc(cx,cy);
-            var lpx=(cm[0]-blMerc[0])/mercW*cw;
-            var lpy=ch-(cm[1]-blMerc[1])/mercH*ch;
-            var label=f.attributes.PastureNumber||f.attributes.PastureNum||"";
+            var lpx=(cm[0]-blM[0])/mW*cw;
+            var lpy=ch-(cm[1]-blM[1])/mH*ch;
+            var label=f.attributes.PastureNumber||"";
             ctx.font="bold 11px Segoe UI";
             var tw=ctx.measureText(label).width;
             ctx.fillStyle="rgba(255,255,255,0.85)";
             ctx.fillRect(lpx-tw/2-3,lpy-7,tw+6,16);
-            ctx.fillStyle="#1B3A5C";
-            ctx.textAlign="center";
-            ctx.textBaseline="middle";
+            ctx.fillStyle="#1B3A5C";ctx.textAlign="center";ctx.textBaseline="middle";
             ctx.fillText(label,lpx,lpy);
           });
         };
-        img.src=basemapUrl;
+        img.src=bmUrl;
       },100);
     }
 
@@ -313,54 +310,252 @@ require([
       var a=f.attributes;
       var pn=a.PastureNumber||a.PastureNum||"";
       var ac=(a.Acreage||0).toFixed(2);
-
-      var nit=a.Nitrate;var nitStr=(nit!=null)?nit.toFixed(2):"";
-      var nitClass=(nit!=null&&nit>30)?"flag-high":"";
-
-      var amm=a.Ammonia;var ammStr=(amm!=null)?amm.toFixed(2):"";
-
-      var phos=a.Phosphate;var phosStr=(phos!=null)?phos.toFixed(2):"";
-      var phosClass=(phos!=null&&phos>100)?"flag-high":"";
-
-      var pot=a.Potassium;var potStr=(pot!=null)?pot.toFixed(2):"";
-      var potClass=(pot!=null&&pot>800)?"flag-high":"";
-
-      var om=a.OrgCarbon;var omStr=(om!=null)?om.toFixed(2):"";
-      var omClass=(om!=null&&om<5)?"flag-low":"";
-
-      var ph=a.PHLevel;var phStr=(ph!=null)?ph.toFixed(2):"";
-      var phClass="";
-      if(ph!=null&&(ph<5.5||ph>7.5))phClass="flag-warn";
-
-      var lastTest=a.SoilLastTest2;
-      var testStr="";
-      var testClass="";
-      if(lastTest){
-        var td=new Date(lastTest);
-        testStr=td.toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"});
-        if(td<cutoff) testClass="flag-high";
-      } else {
-        testStr="No data";
-        testClass="flag-high";
-      }
+      var nit=a.Nitrate,nitS=(nit!=null)?nit.toFixed(2):"",nitC=(nit!=null&&nit>30)?"flag-high":"";
+      var amm=a.Ammonia,ammS=(amm!=null)?amm.toFixed(2):"";
+      var phos=a.Phosphate,phosS=(phos!=null)?phos.toFixed(2):"",phosC=(phos!=null&&phos>100)?"flag-high":"";
+      var pot=a.Potassium,potS=(pot!=null)?pot.toFixed(2):"",potC=(pot!=null&&pot>800)?"flag-high":"";
+      var om=a.OrgCarbon,omS=(om!=null)?om.toFixed(2):"",omC=(om!=null&&om<5)?"flag-low":"";
+      var ph=a.PHLevel,phS=(ph!=null)?ph.toFixed(2):"",phC="";
+      if(ph!=null&&(ph<5.5||ph>7.5))phC="flag-warn";
+      var lt=a.SoilLastTest2,ltS="",ltC="";
+      if(lt){var td=new Date(lt);ltS=td.toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"});if(td<oct1cutoff)ltC="flag-high";}
+      else{ltS="No data";ltC="flag-high";}
 
       html+='<tr>';
-      html+='<td><strong>'+pn+'</strong></td>';
-      html+='<td>'+ac+'</td>';
-      html+='<td class="'+nitClass+'">'+nitStr+'</td>';
-      html+='<td>'+ammStr+'</td>';
-      html+='<td class="'+phosClass+'">'+phosStr+'</td>';
-      html+='<td class="'+potClass+'">'+potStr+'</td>';
-      html+='<td class="'+omClass+'">'+omStr+'</td>';
-      html+='<td class="'+phClass+'">'+phStr+'</td>';
-      html+='<td class="'+testClass+'">'+testStr+'</td>';
-      html+='</tr>';
+      html+='<td><strong>'+pn+'</strong></td><td>'+ac+'</td>';
+      html+='<td class="'+nitC+'">'+nitS+'</td><td>'+ammS+'</td>';
+      html+='<td class="'+phosC+'">'+phosS+'</td><td class="'+potC+'">'+potS+'</td>';
+      html+='<td class="'+omC+'">'+omS+'</td><td class="'+phC+'">'+phS+'</td>';
+      html+='<td class="'+ltC+'">'+ltS+'</td></tr>';
     });
-
     html+='</tbody></table>';
+
+    // Placeholder for trends
+    html+='<div id="trendsArea"></div>';
     html+='</div>';
 
     document.getElementById("reportOutput").innerHTML=html;
+  }
+
+  function fetchTrends(features){
+    var pastureNames = [];
+    features.forEach(function(f){
+      var pn = f.attributes.PastureNumber || f.attributes.PastureNum;
+      if(pn) pastureNames.push(pn);
+    });
+    if(pastureNames.length === 0){ document.getElementById("status").textContent = "Report generated."; return; }
+
+    var inClause = pastureNames.map(function(n){ return "'" + n.replace(/'/g,"''") + "'"; }).join(",");
+    var where = "PastureNum IN (" + inClause + ")";
+
+    var trendData = {};
+    pastureNames.forEach(function(pn){ trendData[pn] = {}; });
+
+    var promises = yearTables.map(function(yt){
+      var url = featureBase + yt.id + "/query"
+        + "?where=" + encodeURIComponent(where)
+        + "&outFields=PastureNum,Nitrate,Ammonia,Phosphate,Potassium,Org_Matter,PHLevel"
+        + "&f=json&token=" + serverToken;
+      return fetch(url).then(function(r){ return r.json(); }).then(function(data){
+        if(!data.features) return;
+        data.features.forEach(function(f){
+          var a = f.attributes;
+          var pn = a.PastureNum;
+          if(!pn || !trendData[pn]) return;
+          trendData[pn][yt.year] = {
+            Nitrate: a.Nitrate,
+            Ammonia: a.Ammonia,
+            Phosphate: a.Phosphate,
+            Potassium: a.Potassium,
+            OrgMatter: a.Org_Matter != null ? a.Org_Matter : (a.OrgCarbon || null),
+            pH: a.PHLevel
+          };
+        });
+      }).catch(function(){ /* skip failed table */ });
+    });
+
+    Promise.all(promises).then(function(){
+      buildTrendCharts(trendData);
+      document.getElementById("status").textContent = "Report generated with trend charts.";
+    });
+  }
+
+  function buildTrendCharts(trendData){
+    var area = document.getElementById("trendsArea");
+    if(!area) return;
+
+    var qualifying = [];
+    Object.keys(trendData).forEach(function(pn){
+      var years = Object.keys(trendData[pn]);
+      if(years.length >= 2) qualifying.push(pn);
+    });
+
+    if(qualifying.length === 0){
+      area.innerHTML = '<div class="trends-section"><h2>Nutrient Trends</h2>'
+        + '<p class="trends-note">No pastures on this farm have data in 2 or more sampling years. Trend charts require multiple years of data.</p></div>';
+      return;
+    }
+
+    qualifying.sort();
+
+    var nutrients = [
+      {key:"Nitrate", label:"Nitrate (ppm)", color:"#1565c0", threshold:30, thresholdDir:"above"},
+      {key:"Phosphate", label:"Phosphate (ppm)", color:"#2e7d32", threshold:100, thresholdDir:"above"},
+      {key:"Potassium", label:"Potassium (ppm)", color:"#6a1b9a", threshold:800, thresholdDir:"above"},
+      {key:"OrgMatter", label:"Org Matter (%)", color:"#795548", threshold:5, thresholdDir:"below"},
+      {key:"pH", label:"pH", color:"#e65100", threshold:null, thresholdLow:5.5, thresholdHigh:7.5}
+    ];
+
+    var html = '<div class="trends-section">';
+    html += '<h2>Nutrient Trends by Pasture</h2>';
+    html += '<p class="trends-note">Showing pastures with data in 2 or more sampling years. Red dashed lines indicate concern thresholds.</p>';
+
+    qualifying.forEach(function(pn, pi){
+      var data = trendData[pn];
+      var years = Object.keys(data).map(Number).sort();
+      html += '<div class="pasture-trend">';
+      html += '<h3>' + pn + ' (' + years.join(", ") + ')</h3>';
+      html += '<div class="mini-charts">';
+      nutrients.forEach(function(nut, ni){
+        var canvasId = "trend_" + pi + "_" + ni;
+        html += '<div class="mini-chart-wrap">';
+        html += '<div class="mini-chart-label">' + nut.label + '</div>';
+        html += '<canvas id="' + canvasId + '" width="180" height="130"></canvas>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    });
+    html += '</div>';
+    area.innerHTML = html;
+
+    setTimeout(function(){
+      qualifying.forEach(function(pn, pi){
+        var data = trendData[pn];
+        var years = Object.keys(data).map(Number).sort();
+        nutrients.forEach(function(nut, ni){
+          var canvasId = "trend_" + pi + "_" + ni;
+          var canvas = document.getElementById(canvasId);
+          if(!canvas) return;
+          var values = [];
+          years.forEach(function(y){ values.push(data[y][nut.key]); });
+          drawMiniChart(canvas, years, values, nut);
+        });
+      });
+    }, 200);
+  }
+
+  function drawMiniChart(canvas, years, values, nut){
+    var ctx = canvas.getContext("2d");
+    var W = canvas.width, H = canvas.height;
+    var padL=35, padR=10, padT=10, padB=22;
+    var plotW = W - padL - padR;
+    var plotH = H - padT - padB;
+
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = "#ddd";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(padL, padT, plotW, plotH);
+
+    var validVals = values.filter(function(v){ return v != null; });
+    if(validVals.length < 2){
+      ctx.fillStyle = "#999";
+      ctx.font = "11px Segoe UI";
+      ctx.textAlign = "center";
+      ctx.fillText("Insufficient data", W/2, H/2);
+      return;
+    }
+
+    var minV = Math.min.apply(null, validVals);
+    var maxV = Math.max.apply(null, validVals);
+
+    // Include thresholds in range
+    if(nut.threshold != null){
+      if(nut.threshold < minV) minV = nut.threshold;
+      if(nut.threshold > maxV) maxV = nut.threshold;
+    }
+    if(nut.thresholdLow != null){
+      if(nut.thresholdLow < minV) minV = nut.thresholdLow;
+      if(nut.thresholdHigh > maxV) maxV = nut.thresholdHigh;
+    }
+
+    var range = maxV - minV;
+    if(range === 0) range = 1;
+    var margin = range * 0.15;
+    minV -= margin;
+    maxV += margin;
+    range = maxV - minV;
+
+    function yPos(v){ return padT + plotH - ((v - minV) / range * plotH); }
+    function xPos(i){ return padL + (i / (years.length - 1)) * plotW; }
+
+    // Grid lines
+    ctx.strokeStyle = "#eee";
+    ctx.lineWidth = 0.5;
+    for(var g = 0; g <= 4; g++){
+      var gy = padT + (plotH / 4) * g;
+      ctx.beginPath(); ctx.moveTo(padL, gy); ctx.lineTo(padL + plotW, gy); ctx.stroke();
+    }
+
+    // Threshold lines
+    ctx.setLineDash([4, 3]);
+    ctx.lineWidth = 1.5;
+    if(nut.threshold != null){
+      ctx.strokeStyle = "#c62828";
+      var ty = yPos(nut.threshold);
+      ctx.beginPath(); ctx.moveTo(padL, ty); ctx.lineTo(padL + plotW, ty); ctx.stroke();
+    }
+    if(nut.thresholdLow != null){
+      ctx.strokeStyle = "#e65100";
+      var tly = yPos(nut.thresholdLow);
+      ctx.beginPath(); ctx.moveTo(padL, tly); ctx.lineTo(padL + plotW, tly); ctx.stroke();
+      var thy = yPos(nut.thresholdHigh);
+      ctx.beginPath(); ctx.moveTo(padL, thy); ctx.lineTo(padL + plotW, thy); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Data line
+    ctx.strokeStyle = nut.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    var started = false;
+    for(var i = 0; i < years.length; i++){
+      if(values[i] == null) continue;
+      var px = xPos(i), py = yPos(values[i]);
+      if(!started){ ctx.moveTo(px, py); started = true; }
+      else { ctx.lineTo(px, py); }
+    }
+    ctx.stroke();
+
+    // Data points
+    for(var j = 0; j < years.length; j++){
+      if(values[j] == null) continue;
+      var dpx = xPos(j), dpy = yPos(values[j]);
+      ctx.fillStyle = nut.color;
+      ctx.beginPath(); ctx.arc(dpx, dpy, 3.5, 0, Math.PI*2); ctx.fill();
+      // Value label
+      ctx.fillStyle = "#333";
+      ctx.font = "9px Segoe UI";
+      ctx.textAlign = "center";
+      ctx.fillText(values[j].toFixed(1), dpx, dpy - 7);
+    }
+
+    // Y axis labels
+    ctx.fillStyle = "#666";
+    ctx.font = "9px Segoe UI";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText(maxV.toFixed(0), padL - 3, padT + 4);
+    ctx.fillText(minV.toFixed(0), padL - 3, padT + plotH);
+
+    // X axis labels (years)
+    ctx.fillStyle = "#333";
+    ctx.font = "9px Segoe UI";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    for(var k = 0; k < years.length; k++){
+      ctx.fillText("'" + String(years[k]).slice(2), xPos(k), padT + plotH + 4);
+    }
   }
 
 });
