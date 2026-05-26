@@ -1,181 +1,369 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>TCCA Soil Report</title>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TCCA Soil Report Generator</title>
 <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
 <script src="https://js.arcgis.com/4.28/"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Helvetica,Arial,sans-serif;background:#f5f5f5;color:#333}
-.h{background:#0F1F5E;color:#fff;padding:14px 20px}
-.h h1{font-size:20px}
-.c{background:#fff;padding:16px 20px;border-bottom:2px solid #0F1F5E;display:flex;gap:10px;align-items:center}
-.c input{padding:8px 12px;font-size:14px;border:2px solid #ccc;border-radius:4px;width:180px}
-.b{background:#0F1F5E;color:#fff;border:none;padding:8px 20px;font-size:14px;border-radius:4px;cursor:pointer;font-weight:bold}
-.b:hover{background:#2a5580}
-#s{padding:10px 20px;font-size:13px;color:#666;display:none}
-#r{padding:20px;display:none}
-.rc{background:#fff;max-width:1100px;margin:0 auto;border:1px solid #ddd;border-radius:4px;overflow:hidden}
-.rh{background:#0F1F5E;color:#fff;padding:14px 20px}
-.rh h2{font-size:20px;margin:0}
-.rb{padding:16px 20px}
-.ig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 20px;margin-bottom:16px;font-size:13px}
-.ig b{color:#0F1F5E}
-.rb h3{color:#0F1F5E;font-size:14px;margin:16px 0 8px}
-table{width:100%;border-collapse:collapse;font-size:11px}
-thead th{background:#0F1F5E;color:#fff;padding:6px 4px;text-align:center;border:1px solid #0F1F5E}
-thead th:first-child{text-align:left}
-tbody td{padding:4px;text-align:center;border:1px solid #CCC}
-tbody td:first-child{text-align:left}
-tbody tr:nth-child(even){background:#F0F0F0}
-.t{background:#E8E8E8!important;font-weight:bold}
-.f{margin-top:20px;text-align:center;font-size:10px;color:#999;border-top:1px solid #CCC;padding-top:6px}
-.np{text-align:center;margin:8px}
-.bp{background:#2ecc71;color:#fff;border:none;padding:8px 20px;font-size:14px;border-radius:4px;cursor:pointer}
-td:nth-child(3){white-space:nowrap;} /* keeps date clean */
-@media print{.h,.c,#s,.np{display:none!important}#r{padding:0}.rc{border:none}@page{size:landscape;margin:.5in}}
-</style></head>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f4f4f4;color:#333}
+.header{background:#1B3A5C;color:#fff;padding:20px 30px;display:flex;align-items:center;gap:20px}
+.header h1{font-size:24px;font-weight:600}
+.container{max-width:1100px;margin:30px auto;padding:0 20px}
+.input-section{background:#fff;border-radius:8px;padding:25px;box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:20px;display:flex;gap:15px;align-items:flex-end}
+.input-section label{font-weight:600;display:block;margin-bottom:5px;color:#1B3A5C}
+.input-section input{padding:10px 15px;border:2px solid #ddd;border-radius:6px;font-size:16px;width:200px}
+.input-section input:focus{border-color:#1B3A5C;outline:none}
+.btn{padding:10px 25px;background:#1B3A5C;color:#fff;border:none;border-radius:6px;font-size:16px;cursor:pointer;font-weight:600}
+.btn:hover{background:#2a5580}
+.btn-print{background:#2e7d32}
+.btn-print:hover{background:#1b5e20}
+#status{padding:10px 0;font-style:italic;color:#666}
+.report{background:#fff;border-radius:8px;padding:30px;box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:30px}
+.report-title{font-size:22px;font-weight:700;color:#1B3A5C;margin-bottom:5px}
+.report-subtitle{color:#666;margin-bottom:20px;font-size:14px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 30px;margin-bottom:20px}
+.info-item{display:flex;gap:8px}
+.info-label{font-weight:600;color:#1B3A5C;min-width:140px}
+.info-value{color:#333}
+.sampling-current{color:#2e7d32;font-weight:700}
+.sampling-due{color:#c62828;font-weight:700}
+.legend-box{background:#f8f9fa;border:2px solid #1B3A5C;border-radius:8px;padding:15px 20px;margin-bottom:20px}
+.legend-box h3{color:#1B3A5C;margin-bottom:10px;font-size:15px}
+.legend-items{display:flex;flex-wrap:wrap;gap:15px 30px}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:13px}
+.legend-swatch{width:14px;height:14px;border-radius:3px;display:inline-block}
+.swatch-red{background:#c62828}
+.swatch-orange{background:#e65100}
+.map-container{margin-bottom:20px;text-align:center}
+.map-container canvas{border:2px solid #1B3A5C;border-radius:6px;max-width:100%}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+th{background:#1B3A5C;color:#fff;padding:10px 8px;text-align:center;font-weight:600}
+td{padding:8px;text-align:center;border-bottom:1px solid #eee}
+tr:nth-child(even){background:#f8f9fa}
+tr:hover{background:#e3f2fd}
+.flag-high{color:#c62828;font-weight:700}
+.flag-low{color:#c62828;font-weight:700}
+.flag-warn{color:#e65100;font-weight:700}
+@media print{
+  .no-print{display:none!important}
+  body{background:#fff}
+  .report{box-shadow:none;padding:15px}
+  .header{padding:10px 20px}
+}
+</style>
+</head>
 <body>
-<div class="h"><h1>TCCA Soil Report Generator</h1></div>
-<div class="c"><b style="color:#0F1F5E">Farm Number:</b> <input id="fn" value="1071"> <button class="b" id="go">Generate Report</button></div>
-<div id="s"></div><div id="r"></div>
+<div class="header">
+<h1>TCCA Soil Report Generator</h1>
+</div>
+<div class="container">
+<div class="input-section no-print">
+<div>
+<label for="farmNum">Farm Number</label>
+<input type="text" id="farmNum" placeholder="e.g. 1261">
+</div>
+<button class="btn" onclick="generateReport()">Generate Report</button>
+<button class="btn btn-print" onclick="window.print()" style="display:none" id="printBtn">Print / Save as PDF</button>
+</div>
+<div id="status" class="no-print"></div>
+<div id="reportOutput"></div>
+</div>
 <script>
-var PORTAL="https://tillamookfarm.maps.arcgis.com";
-var SERVER="https://services3.arcgis.com/6rtKUOn0HwWMTo5b/arcgis";
-var QUERY_URL=SERVER+"/rest/services/Dashboard_Internal_WFL1/FeatureServer/8/query";
-var APP_ID="PZTMDvs9PDdeYrAu";
-var serverToken="";
-var authReady=false;
+require([
+  "esri/identity/OAuthInfo",
+  "esri/identity/IdentityManager",
+  "esri/portal/Portal"
+], function(OAuthInfo, IdentityManager, Portal){
 
-function showStatus(m){var e=document.getElementById("s");e.style.display="block";e.textContent=m;}
-function hideStatus(){document.getElementById("s").style.display="none";}
+  var info = new OAuthInfo({
+    appId: "PZTMDvs9PDdeYrAu",
+    portalUrl: "https://tillamookfarm.maps.arcgis.com",
+    popup: false
+  });
+  IdentityManager.registerOAuthInfos([info]);
 
-showStatus("Signing in to ArcGIS Online...");
+  var portalUrl = "https://tillamookfarm.maps.arcgis.com";
+  var serverBase = "https://services3.arcgis.com/6rtKUOn0HwWMTo5b/arcgis";
+  var layerUrl = serverBase + "/rest/services/Dashboard_Internal_WFL1/FeatureServer/8/query";
 
-require(["esri/config","esri/identity/OAuthInfo","esri/identity/IdentityManager"],function(cfg,OAuthInfo,idm){
-cfg.portalUrl=PORTAL;
-var info=new OAuthInfo({appId:APP_ID,portalUrl:PORTAL,popup:false});
-idm.registerOAuthInfos([info]);
-idm.checkSignInStatus(PORTAL+"/sharing").catch(function(){
-return idm.getCredential(PORTAL+"/sharing");
-}).then(function(cred){
-showStatus("Exchanging token...");
-fetch(PORTAL+"/sharing/rest/generateToken",{method:"POST",body:new URLSearchParams({token:cred.token,serverUrl:SERVER,f:"json"})}).then(function(r){return r.json();}).then(function(d){
-if(d.token){serverToken=d.token;authReady=true;hideStatus();console.log("Ready. Server token obtained.");}
-else{showStatus("Token exchange failed. Try refreshing.");}
+  var serverToken = null;
+
+  IdentityManager.checkSignInStatus(portalUrl + "/sharing").then(function(cred){
+    return exchangeToken(cred.token);
+  }).catch(function(){
+    IdentityManager.getCredential(portalUrl + "/sharing").then(function(cred){
+      return exchangeToken(cred.token);
+    });
+  });
+
+  function exchangeToken(portalToken){
+    var tokenUrl = portalUrl + "/sharing/rest/generateToken";
+    var body = "token=" + encodeURIComponent(portalToken)
+      + "&serverUrl=" + encodeURIComponent(serverBase)
+      + "&f=json";
+    return fetch(tokenUrl, {
+      method: "POST",
+      headers: {"Content-Type": "application/x-www-form-urlencoded"},
+      body: body
+    }).then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.token){
+        serverToken = d.token;
+        document.getElementById("status").textContent = "Signed in. Ready to generate reports.";
+      } else {
+        document.getElementById("status").textContent = "Token exchange failed.";
+      }
+    });
+  }
+
+  function toMerc(lon, lat){
+    var x = lon * 20037508.34 / 180;
+    var y = Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180);
+    y = y * 20037508.34 / 180;
+    return [x, y];
+  }
+
+  window.generateReport = function(){
+    var farmNum = document.getElementById("farmNum").value.trim();
+    if(!farmNum){ alert("Please enter a farm number."); return; }
+    if(!serverToken){ alert("Not signed in yet. Please wait."); return; }
+
+    document.getElementById("status").textContent = "Querying data...";
+    document.getElementById("reportOutput").innerHTML = "";
+    document.getElementById("printBtn").style.display = "none";
+
+    var url = layerUrl
+      + "?where=PrimProdNum%3D" + encodeURIComponent("'" + farmNum + "'")
+      + "&outFields=*&outSR=4326&f=json&token=" + serverToken;
+
+    fetch(url).then(function(r){ return r.json(); }).then(function(data){
+      if(!data.features || data.features.length === 0){
+        document.getElementById("status").textContent = "No pastures found for farm " + farmNum + ".";
+        return;
+      }
+      buildReport(data.features, farmNum);
+      document.getElementById("status").textContent = "Report generated.";
+      document.getElementById("printBtn").style.display = "inline-block";
+    }).catch(function(err){
+      document.getElementById("status").textContent = "Error: " + err.message;
+    });
+  };
+
+  function buildReport(features, farmNum){
+    var f0 = features[0].attributes;
+    var producer = f0.Producer || "Unknown";
+    var cafo = f0.CAFO_Size || "Unknown";
+    var totalAcres = 0;
+    features.forEach(function(f){ totalAcres += (f.attributes.Acreage || 0); });
+
+    var now = new Date();
+    var currentYear = now.getFullYear();
+    var oct1 = new Date(currentYear, 9, 1);
+    var cutoff = new Date(currentYear - 3, 9, 1);
+    var anyDue = false;
+    var dueCount = 0;
+    var noTestCount = 0;
+
+    features.forEach(function(f){
+      var a = f.attributes;
+      if(a.FieldStatus && a.FieldStatus !== "Active Use") return;
+      var lastTest = a.SoilLastTest2;
+      if(!lastTest){ noTestCount++; anyDue = true; return; }
+      var testDate = new Date(lastTest);
+      if(testDate < cutoff){ dueCount++; anyDue = true; }
+    });
+
+    var samplingStatus, samplingClass;
+    if(anyDue){
+      var details = [];
+      if(dueCount > 0) details.push(dueCount + " field(s) overdue");
+      if(noTestCount > 0) details.push(noTestCount + " with no test date");
+      samplingStatus = "Due for Fall Sampling (" + details.join(", ") + ")";
+      samplingClass = "sampling-due";
+    } else {
+      samplingStatus = "Sampling Current, All Fields Within 3-Year Window";
+      samplingClass = "sampling-current";
+    }
+
+    var dateStr = now.toLocaleDateString("en-US", {year:"numeric",month:"long",day:"numeric"});
+
+    var html = '<div class="report">';
+    html += '<div class="report-title">Soil Sampling Report: ' + producer + '</div>';
+    html += '<div class="report-subtitle">Generated ' + dateStr + '</div>';
+
+    html += '<div class="info-grid">';
+    html += '<div class="info-item"><span class="info-label">Farm Number:</span><span class="info-value">' + farmNum + '</span></div>';
+    html += '<div class="info-item"><span class="info-label">Producer:</span><span class="info-value">' + producer + '</span></div>';
+    html += '<div class="info-item"><span class="info-label">CAFO Size:</span><span class="info-value">' + cafo + '</span></div>';
+    html += '<div class="info-item"><span class="info-label">Total Acreage:</span><span class="info-value">' + totalAcres.toFixed(2) + '</span></div>';
+    html += '<div class="info-item"><span class="info-label">Pasture Count:</span><span class="info-value">' + features.length + '</span></div>';
+    html += '<div class="info-item"><span class="info-label">Sampling Status:</span><span class="info-value ' + samplingClass + '">' + samplingStatus + '</span></div>';
+    html += '</div>';
+
+    html += '<div class="legend-box">';
+    html += '<h3>Nutrient Threshold Key</h3>';
+    html += '<div class="legend-items">';
+    html += '<div class="legend-item"><span class="legend-swatch swatch-red"></span><strong>Red</strong>: Exceeds concern threshold</div>';
+    html += '<div class="legend-item"><span class="legend-swatch swatch-orange"></span><strong>Orange</strong>: Outside optimal range</div>';
+    html += '</div>';
+    html += '<div class="legend-items" style="margin-top:8px;font-size:12px;color:#555">';
+    html += '<div class="legend-item">Nitrate &gt; 30 ppm</div>';
+    html += '<div class="legend-item">Phosphate &gt; 100 ppm</div>';
+    html += '<div class="legend-item">Potassium &gt; 800 ppm</div>';
+    html += '<div class="legend-item">Org Matter &lt; 5%</div>';
+    html += '<div class="legend-item">pH &lt; 5.5 or &gt; 7.5</div>';
+    html += '</div>';
+    html += '</div>';
+
+    // Map
+    var allCoords = [];
+    features.forEach(function(f){
+      if(!f.geometry || !f.geometry.rings) return;
+      f.geometry.rings.forEach(function(ring){
+        ring.forEach(function(pt){ allCoords.push(pt); });
+      });
+    });
+
+    if(allCoords.length > 0){
+      var minLon=Infinity,maxLon=-Infinity,minLat=Infinity,maxLat=-Infinity;
+      allCoords.forEach(function(c){
+        if(c[0]<minLon)minLon=c[0]; if(c[0]>maxLon)maxLon=c[0];
+        if(c[1]<minLat)minLat=c[1]; if(c[1]>maxLat)maxLat=c[1];
+      });
+
+      var pad=0.002;
+      minLon-=pad;maxLon+=pad;minLat-=pad;maxLat+=pad;
+
+      var blMerc=toMerc(minLon,minLat);
+      var trMerc=toMerc(maxLon,maxLat);
+
+      var cw=900,ch=600;
+      var mercW=trMerc[0]-blMerc[0];
+      var mercH=trMerc[1]-blMerc[1];
+      var ratio=mercW/mercH;
+      if(ratio>cw/ch){ch=Math.round(cw/ratio);}else{cw=Math.round(ch*ratio);}
+
+      var basemapUrl="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export"
+        +"?bbox="+blMerc[0]+","+blMerc[1]+","+trMerc[0]+","+trMerc[1]
+        +"&bboxSR=102100&imageSR=102100&size="+cw+","+ch+"&format=png32&f=image";
+
+      html+='<div class="map-container">';
+      html+='<canvas id="mapCanvas" width="'+cw+'" height="'+ch+'"></canvas>';
+      html+='</div>';
+
+      setTimeout(function(){
+        var canvas=document.getElementById("mapCanvas");
+        if(!canvas) return;
+        var ctx=canvas.getContext("2d");
+        var img=new Image();
+        img.crossOrigin="anonymous";
+        img.onload=function(){
+          ctx.drawImage(img,0,0,cw,ch);
+          features.forEach(function(f){
+            if(!f.geometry||!f.geometry.rings) return;
+            f.geometry.rings.forEach(function(ring){
+              ctx.beginPath();
+              ring.forEach(function(pt,i){
+                var m=toMerc(pt[0],pt[1]);
+                var px=(m[0]-blMerc[0])/mercW*cw;
+                var py=ch-(m[1]-blMerc[1])/mercH*ch;
+                if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+              });
+              ctx.closePath();
+              ctx.fillStyle="rgba(45,132,59,0.35)";
+              ctx.fill();
+              ctx.strokeStyle="#FFD700";
+              ctx.lineWidth=2.5;
+              ctx.stroke();
+            });
+
+            // Label
+            var rings=f.geometry.rings[0];
+            var cx=0,cy=0;
+            rings.forEach(function(pt){cx+=pt[0];cy+=pt[1];});
+            cx/=rings.length;cy/=rings.length;
+            var cm=toMerc(cx,cy);
+            var lpx=(cm[0]-blMerc[0])/mercW*cw;
+            var lpy=ch-(cm[1]-blMerc[1])/mercH*ch;
+            var label=f.attributes.PastureNumber||f.attributes.PastureNum||"";
+            ctx.font="bold 11px Segoe UI";
+            var tw=ctx.measureText(label).width;
+            ctx.fillStyle="rgba(255,255,255,0.85)";
+            ctx.fillRect(lpx-tw/2-3,lpy-7,tw+6,16);
+            ctx.fillStyle="#1B3A5C";
+            ctx.textAlign="center";
+            ctx.textBaseline="middle";
+            ctx.fillText(label,lpx,lpy);
+          });
+        };
+        img.src=basemapUrl;
+      },100);
+    }
+
+    // Data Table
+    html+='<table><thead><tr>';
+    html+='<th>Pasture</th><th>Acres</th><th>Nitrate (ppm)</th><th>Ammonia (ppm)</th>';
+    html+='<th>Phosphate (ppm)</th><th>Potassium (ppm)</th><th>Org Matter (%)</th><th>pH</th><th>Last Tested</th>';
+    html+='</tr></thead><tbody>';
+
+    features.forEach(function(f){
+      var a=f.attributes;
+      var pn=a.PastureNumber||a.PastureNum||"";
+      var ac=(a.Acreage||0).toFixed(2);
+
+      var nit=a.Nitrate;var nitStr=(nit!=null)?nit.toFixed(2):"";
+      var nitClass=(nit!=null&&nit>30)?"flag-high":"";
+
+      var amm=a.Ammonia;var ammStr=(amm!=null)?amm.toFixed(2):"";
+
+      var phos=a.Phosphate;var phosStr=(phos!=null)?phos.toFixed(2):"";
+      var phosClass=(phos!=null&&phos>100)?"flag-high":"";
+
+      var pot=a.Potassium;var potStr=(pot!=null)?pot.toFixed(2):"";
+      var potClass=(pot!=null&&pot>800)?"flag-high":"";
+
+      var om=a.OrgCarbon;var omStr=(om!=null)?om.toFixed(2):"";
+      var omClass=(om!=null&&om<5)?"flag-low":"";
+
+      var ph=a.PHLevel;var phStr=(ph!=null)?ph.toFixed(2):"";
+      var phClass="";
+      if(ph!=null&&(ph<5.5||ph>7.5))phClass="flag-warn";
+
+      var lastTest=a.SoilLastTest2;
+      var testStr="";
+      var testClass="";
+      if(lastTest){
+        var td=new Date(lastTest);
+        testStr=td.toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"});
+        if(td<cutoff) testClass="flag-high";
+      } else {
+        testStr="No data";
+        testClass="flag-high";
+      }
+
+      html+='<tr>';
+      html+='<td><strong>'+pn+'</strong></td>';
+      html+='<td>'+ac+'</td>';
+      html+='<td class="'+nitClass+'">'+nitStr+'</td>';
+      html+='<td>'+ammStr+'</td>';
+      html+='<td class="'+phosClass+'">'+phosStr+'</td>';
+      html+='<td class="'+potClass+'">'+potStr+'</td>';
+      html+='<td class="'+omClass+'">'+omStr+'</td>';
+      html+='<td class="'+phClass+'">'+phStr+'</td>';
+      html+='<td class="'+testClass+'">'+testStr+'</td>';
+      html+='</tr>';
+    });
+
+    html+='</tbody></table>';
+    html+='</div>';
+
+    document.getElementById("reportOutput").innerHTML=html;
+  }
+
 });
-}).catch(function(e){showStatus("Sign in failed: "+e.message);});
-});
-
-function fm(v,d){if(v==null||v==="")return"";return parseFloat(v).toFixed(d!=null?d:1);}
-
-/* ✅ NEW: Date formatter */
-function fdate(v){
-if(!v)return"";
-var d=new Date(v);
-return (d.getMonth()+1)+"/"+d.getDate()+"/"+d.getFullYear();
-}
-
-function toMerc(lon,lat){
-var x=lon*20037508.34/180;
-var y=Math.log(Math.tan((90+lat)*Math.PI/360))*20037508.34/Math.PI;
-return[x,y];
-}
-
-function buildMap(fs,fn,pr){
-return new Promise(function(resolve){
-var xs=[],ys=[];
-for(var i=0;i<fs.length;i++){
-var g=fs[i].geometry;
-if(g&&g.rings){for(var j=0;j<g.rings.length;j++){for(var k=0;k<g.rings[j].length;k++){xs.push(g.rings[j][k][0]);ys.push(g.rings[j][k][1]);}}}}
-if(xs.length===0){resolve("");return;}
-var mxs=[],mys=[];
-for(var i=0;i<xs.length;i++){var m=toMerc(xs[i],ys[i]);mxs.push(m[0]);mys.push(m[1]);}
-var xmin=Math.min.apply(null,mxs),xmax=Math.max.apply(null,mxs);
-var ymin=Math.min.apply(null,mys),ymax=Math.max.apply(null,mys);
-var dx=xmax-xmin||1;var dy=ymax-ymin||1;
-xmin-=dx*0.08;xmax+=dx*0.08;ymin-=dy*0.08;ymax+=dy*0.08;
-dx=xmax-xmin;dy=ymax-ymin;
-var W,H;
-if(dx>dy){W=1000;H=Math.round(1000*dy/dx);}else{H=1000;W=Math.round(1000*dx/dy);}
-if(W<400)W=400;if(H<400)H=400;
-var cv=document.createElement("canvas");cv.width=W;cv.height=H;
-var cx=cv.getContext("2d");
-var bmUrl="https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/export?bbox="+xmin+","+ymin+","+xmax+","+ymax+"&bboxSR=102100&size="+W+","+H+"&imageSR=102100&format=png&f=image";
-function drawOverlay(){
-for(var i=0;i<fs.length;i++){
-var g=fs[i].geometry;
-if(!g||!g.rings)continue;
-for(var j=0;j<g.rings.length;j++){
-cx.beginPath();
-for(var k=0;k<g.rings[j].length;k++){
-var mc=toMerc(g.rings[j][k][0],g.rings[j][k][1]);
-var px=(mc[0]-xmin)/(xmax-xmin)*W;
-var py=H-(mc[1]-ymin)/(ymax-ymin)*H;
-if(k===0)cx.moveTo(px,py);else cx.lineTo(px,py);}
-cx.closePath();cx.fillStyle="rgba(46,204,113,0.5)";cx.fill();cx.strokeStyle="#FFFF00";cx.lineWidth=3;cx.stroke();}}
-cx.font="bold 10px Helvetica";cx.textAlign="center";cx.textBaseline="middle";
-for(var i=0;i<fs.length;i++){
-var g=fs[i].geometry;
-if(!g||!g.rings)continue;
-var ax=[],ay=[];
-for(var j=0;j<g.rings.length;j++){for(var k=0;k<g.rings[j].length;k++){ax.push(g.rings[j][k][0]);ay.push(g.rings[j][k][1]);}}
-var mlon=0,mlat=0;for(var j=0;j<ax.length;j++){mlon+=ax[j];mlat+=ay[j];}mlon/=ax.length;mlat/=ay.length;
-var mc=toMerc(mlon,mlat);
-var px=(mc[0]-xmin)/(xmax-xmin)*W;var py=H-(mc[1]-ymin)/(ymax-ymin)*H;
-var lb=(fs[i].attributes.PastureNumber||"").toString().replace(fn+"-","");
-var mt=cx.measureText(lb);
-cx.fillStyle="rgba(255,255,255,0.85)";cx.fillRect(px-mt.width/2-2,py-6,mt.width+4,12);
-cx.fillStyle="#0F1F5E";cx.fillText(lb,px,py);}
-cx.font="bold 16px Helvetica";cx.textAlign="center";
-var ti="Farm "+fn+": "+pr;var tm=cx.measureText(ti);
-cx.fillStyle="rgba(255,255,255,0.85)";cx.fillRect(W/2-tm.width/2-10,8,tm.width+20,26);
-cx.fillStyle="#0F1F5E";cx.fillText(ti,W/2,22);
-var imgTag="<h3>Farm Map</h3>";
-imgTag+="<img src=\""+cv.toDataURL("image/png")+"\" style=\"width:100%;max-width:950px;border:2px solid #0F1F5E;border-radius:4px;display:block;margin:0 auto\">";
-resolve(imgTag);}
-var img=new Image();
-img.crossOrigin="anonymous";
-img.onload=function(){cx.drawImage(img,0,0,W,H);drawOverlay();};
-img.onerror=function(){cx.fillStyle="#ddd";cx.fillRect(0,0,W,H);drawOverlay();};
-img.src=bmUrl;
-});
-}
-
-document.getElementById("go").addEventListener("click",function(){
-var fn=document.getElementById("fn").value.trim();
-if(!fn){showStatus("Please enter a farm number.");return;}
-if(!authReady){showStatus("Still signing in. Please wait a moment and try again.");return;}
-showStatus("Loading farm "+fn+"...");
-document.getElementById("go").disabled=true;
-
-/* ✅ updated query to include SoilLastTest2 */
-fetch(QUERY_URL+"?where="+encodeURIComponent("PrimProdNum='"+fn+"'")+"&outFields=PrimProdNum,PastureNumber,Producer,CAFO_Size,Acreage,SoilLastTest2,Nitrate,Ammonia,Phosphate,Potassium,OrgCarbon,PHLevel&returnGeometry=true&outSR=4326&f=json&token="+encodeURIComponent(serverToken))
-
-.then(function(r){return r.json();})
-.then(function(d){
-if(d.error){throw new Error(d.error.message);}
-if(!d.features||d.features.length===0){showStatus("No pastures found for farm "+fn);document.getElementById("go").disabled=false;return;}
-var fs=d.features,fi=fs[0].attributes;
-var pr=fi.Producer||"Unknown",ca=fi.CAFO_Size||"Unknown";
-var ta=0;for(var i=0;i<fs.length;i++){ta+=parseFloat(fs[i].attributes.Acreage||0);}
-showStatus("Found "+fs.length+" pastures. Drawing map...");
-buildMap(fs,fn,pr).then(function(mapHtml){
-var rd=new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"});
-var ro="",ru=0;
-
-/* ✅ added Last Sample Date column */
-for(var i=0;i<fs.length;i++){var a=fs[i].attributes,ac=parseFloat(a.Acreage||0);ru+=ac;
-ro+="<tr><td>"+(a.PastureNumber||"")+"</td><td style='text-align:right'>"+fm(ac,2)+"</td><td>"+fdate(a.SoilLastTest2)+"</td><td>"+fm(a.Nitrate)+"</td><td>"+fm(a.Ammonia)+"</td><td>"+fm(a.Phosphate)+"</td><td>"+fm(a.Potassium,0)+"</td><td>"+fm(a.OrgCarbon)+"</td><td>"+fm(a.PHLevel)+"</td></tr>";}
-
-/* ✅ fixed TOTAL row */
-ro+='<tr class="t"><td>TOTAL</td><td style="text-align:right">'+ru.toFixed(2)+'</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
-
-/* ✅ updated header + footer */
-document.getElementById("r").innerHTML='<div class="rc"><div class="rh"><h2>TCCA Soil Sampling Report</h2></div><div class="rb"><hr style="border:none;border-top:3px solid #0F1F5E;margin:0 0 12px"><div class="ig"><div><b>Farm:</b> '+fn+'</div><div><b>Producer:</b> '+pr+'</div><div><b>CAFO:</b> '+ca+'</div><div><b>Pastures:</b> '+fs.length+'</div><div><b>Acres:</b> '+ta.toFixed(2)+'</div><div><b>Date:</b> '+rd+'</div></div>'+mapHtml+'<h3>Soil Sample Results</h3><table><thead><tr><th>Pasture</th><th>Acres</th><th>Last Sample Date</th><th>Nitrate<br>(ppm)</th><th>Ammonia<br>(ppm)</th><th>Phosphate<br>(ppm)</th><th>Potassium<br>(ppm)</th><th>Org Matter<br>(%)</th><th>pH</th></tr></thead><tbody>'+ro+'</tbody></table><div class="f">Tillamook County Creamery Association, Field Services</div></div></div><div class="np"><button class="bp" onclick="window.print()">Print / Save as PDF</button></div>';
-
-document.getElementById("r").style.display="block";hideStatus();document.getElementById("go").disabled=false;
-});
-}).catch(function(e){showStatus("Error: "+e.message);document.getElementById("go").disabled=false;});
-});
-document.getElementById("fn").addEventListener("keyup",function(e){if(e.key==="Enter")document.getElementById("go").click();});
-</script></body></html>
-``
+</script>
+</body>
+</html>
