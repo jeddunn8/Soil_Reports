@@ -35,7 +35,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f4f4f4;
 .legend-item{display:flex;align-items:center;gap:8px;font-size:13px}
 .legend-swatch{width:14px;height:14px;border-radius:3px;display:inline-block}
 .swatch-red{background:#c62828}
-.swatch-orange{background:#e65100}
+.swatch-purple{background:#7b1fa2}
 .map-container{margin-bottom:20px;text-align:center}
 .map-container canvas{border:2px solid #1B3A5C;border-radius:6px;max-width:100%}
 table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
@@ -45,7 +45,7 @@ tr:nth-child(even){background:#f8f9fa}
 tr:hover{background:#e3f2fd}
 .flag-high{color:#c62828;font-weight:700}
 .flag-low{color:#c62828;font-weight:700}
-.flag-warn{color:#e65100;font-weight:700}
+.flag-warn{color:#7b1fa2;font-weight:700}
 .trends-section{margin-top:30px;border-top:3px solid #1B3A5C;padding-top:20px}
 .trends-section h2{color:#1B3A5C;font-size:20px;margin-bottom:5px}
 .trends-section .trends-note{color:#666;font-size:13px;margin-bottom:20px}
@@ -222,7 +222,7 @@ require([
     html += '<h3>Nutrient Threshold Key</h3>';
     html += '<div class="legend-items">';
     html += '<div class="legend-item"><span class="legend-swatch swatch-red"></span><strong>Red</strong>: Exceeds concern threshold</div>';
-    html += '<div class="legend-item"><span class="legend-swatch swatch-orange"></span><strong>Orange</strong>: Outside optimal range</div>';
+    html += '<div class="legend-item"><span class="legend-swatch swatch-purple"></span><strong>Purple</strong>: Outside optimal range</div>';
     html += '</div>';
     html += '<div class="legend-items" style="margin-top:8px;font-size:12px;color:#555">';
     html += '<div class="legend-item">Nitrate &gt; 30 ppm</div>';
@@ -403,12 +403,12 @@ require([
       {key:"Phosphate", label:"Phosphate (ppm)", color:"#2e7d32", threshold:100, thresholdDir:"above"},
       {key:"Potassium", label:"Potassium (ppm)", color:"#6a1b9a", threshold:800, thresholdDir:"above"},
       {key:"OrgMatter", label:"Org Matter (%)", color:"#795548", threshold:5, thresholdDir:"below"},
-      {key:"pH", label:"pH", color:"#e65100", threshold:null, thresholdLow:5.5, thresholdHigh:7.5}
+      {key:"pH", label:"pH", color:"#7b1fa2", threshold:null, thresholdLow:5.5, thresholdHigh:7.5}
     ];
 
     var html = '<div class="trends-section">';
     html += '<h2>Nutrient Trends by Pasture</h2>';
-    html += '<p class="trends-note">Showing pastures with data in 2 or more sampling years. Red dashed lines indicate concern thresholds.</p>';
+    html += '<p class="trends-note">Showing pastures with data in 2 or more sampling years. Red dashed lines indicate concern thresholds. Purple dashed lines indicate optimal range boundaries.</p>';
 
     qualifying.forEach(function(pn, pi){
       var data = trendData[pn];
@@ -506,7 +506,7 @@ require([
       ctx.beginPath(); ctx.moveTo(padL, ty); ctx.lineTo(padL + plotW, ty); ctx.stroke();
     }
     if(nut.thresholdLow != null){
-      ctx.strokeStyle = "#e65100";
+      ctx.strokeStyle = "#7b1fa2";
       var tly = yPos(nut.thresholdLow);
       ctx.beginPath(); ctx.moveTo(padL, tly); ctx.lineTo(padL + plotW, tly); ctx.stroke();
       var thy = yPos(nut.thresholdHigh);
