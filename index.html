@@ -31,9 +31,11 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f4f4f4;
 .sampling-due{color:#c62828;font-weight:700}
 .legend-box{background:#f8f9fa;border:2px solid #1B3A5C;border-radius:8px;padding:15px 20px;margin-bottom:20px}
 .legend-box h3{color:#1B3A5C;margin-bottom:10px;font-size:15px}
-.legend-items{display:flex;flex-wrap:wrap;gap:15px 30px}
-.legend-item{display:flex;align-items:center;gap:8px;font-size:13px}
-.legend-swatch{width:14px;height:14px;border-radius:3px;display:inline-block}
+.legend-group{margin-bottom:10px}
+.legend-group-title{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;margin-bottom:4px}
+.legend-group-desc{font-size:12px;color:#555;margin-bottom:4px;margin-left:22px}
+.legend-thresholds{display:flex;flex-wrap:wrap;gap:8px 24px;margin-left:22px;font-size:12px;color:#555}
+.legend-swatch{width:14px;height:14px;border-radius:3px;display:inline-block;flex-shrink:0}
 .swatch-red{background:#c62828}
 .swatch-purple{background:#7b1fa2}
 .map-container{margin-bottom:20px;text-align:center}
@@ -218,19 +220,25 @@ require([
     html += '<div class="info-item"><span class="info-label">Sampling Status:</span><span class="info-value ' + samplingClass + '">' + samplingStatus + '</span></div>';
     html += '</div>';
 
+    // Updated legend with Shannon's feedback
     html += '<div class="legend-box">';
-    html += '<h3>Nutrient Threshold Key</h3>';
-    html += '<div class="legend-items">';
-    html += '<div class="legend-item"><span class="legend-swatch swatch-red"></span><strong>Red</strong>: Exceeds concern threshold</div>';
-    html += '<div class="legend-item"><span class="legend-swatch swatch-purple"></span><strong>Purple</strong>: Outside optimal range</div>';
-    html += '</div>';
-    html += '<div class="legend-items" style="margin-top:8px;font-size:12px;color:#555">';
-    html += '<div class="legend-item">Nitrate &gt; 30 ppm</div>';
-    html += '<div class="legend-item">Phosphate &gt; 100 ppm</div>';
-    html += '<div class="legend-item">Potassium &gt; 800 ppm</div>';
-    html += '<div class="legend-item">Org Matter &lt; 5%</div>';
-    html += '<div class="legend-item">pH &lt; 5.5 or &gt; 7.5</div>';
+    html += '<h3>Nutrient Color Key</h3>';
+    html += '<div class="legend-group">';
+    html += '<div class="legend-group-title"><span class="legend-swatch swatch-red"></span> Regulatory Concern</div>';
+    html += '<div class="legend-group-desc">Value exceeds levels that may require management action under NPDES/CAFO permit requirements.</div>';
+    html += '<div class="legend-thresholds">';
+    html += '<span>Nitrate &gt; 30 ppm</span>';
+    html += '<span>Phosphate &gt; 100 ppm</span>';
+    html += '<span>Potassium &gt; 800 ppm</span>';
+    html += '<span>Organic Matter &lt; 5%</span>';
     html += '</div></div>';
+    html += '<div class="legend-group" style="margin-top:10px">';
+    html += '<div class="legend-group-title"><span class="legend-swatch swatch-purple"></span> Soil Health Watch</div>';
+    html += '<div class="legend-group-desc">Value is outside the optimal range for productive pasture. Not a regulatory issue, but may benefit from management adjustments.</div>';
+    html += '<div class="legend-thresholds">';
+    html += '<span>pH below 5.5 or above 7.5</span>';
+    html += '</div></div>';
+    html += '</div>';
 
     // Map
     var allCoords = [];
@@ -250,7 +258,6 @@ require([
       var pad=0.002;minLon-=pad;maxLon+=pad;minLat-=pad;maxLat+=pad;
       var blM=toMerc(minLon,minLat),trM=toMerc(maxLon,maxLat);
 
-      // Dynamic canvas size based on pasture count
       var cw=900,ch=600;
       if(features.length > 20){ cw=1200; ch=900; }
       if(features.length > 40){ cw=1400; ch=1100; }
@@ -272,8 +279,6 @@ require([
         var img=new Image();img.crossOrigin="anonymous";
         img.onload=function(){
           ctx.drawImage(img,0,0,cw,ch);
-
-          // Draw all pasture polygons first
           features.forEach(function(f){
             if(!f.geometry||!f.geometry.rings) return;
             f.geometry.rings.forEach(function(ring){
@@ -290,15 +295,11 @@ require([
             });
           });
 
-          // Then draw labels with collision detection
           var usedBoxes = [];
-
-          // Dynamic font size based on pasture count
           var fontSize = 11;
           if(numFeatures > 20) fontSize = 9;
           if(numFeatures > 40) fontSize = 8;
 
-          // Sort features by area (largest first) so big pastures get labels first
           var sortedFeatures = features.slice().sort(function(a,b){
             return (b.attributes.Acreage||0) - (a.attributes.Acreage||0);
           });
@@ -313,7 +314,6 @@ require([
             var lpx=(cm[0]-blM[0])/mW*cw;
             var lpy=ch-(cm[1]-blM[1])/mH*ch;
 
-            // Shorten labels for large farms by stripping the farm number prefix
             var fullLabel=f.attributes.PastureNumber||"";
             var label=fullLabel;
             if(numFeatures > 15){
@@ -328,7 +328,6 @@ require([
             var lw=tw+8;
             var lh=fontSize+6;
 
-            // Check for overlap with existing labels
             var overlap=false;
             for(var ub=0;ub<usedBoxes.length;ub++){
               var b=usedBoxes[ub];
@@ -382,7 +381,6 @@ require([
     });
     html+='</tbody></table>';
 
-    // Placeholder for trends
     html+='<div id="trendsArea"></div>';
     html+='</div>';
 
@@ -423,7 +421,7 @@ require([
             pH: a.PHLevel
           };
         });
-      }).catch(function(){ /* skip failed table */ });
+      }).catch(function(){});
     });
 
     Promise.all(promises).then(function(){
@@ -451,16 +449,16 @@ require([
     qualifying.sort();
 
     var nutrients = [
-      {key:"Nitrate", label:"Nitrate (ppm)", color:"#1565c0", threshold:30, thresholdDir:"above"},
-      {key:"Phosphate", label:"Phosphate (ppm)", color:"#2e7d32", threshold:100, thresholdDir:"above"},
-      {key:"Potassium", label:"Potassium (ppm)", color:"#6a1b9a", threshold:800, thresholdDir:"above"},
-      {key:"OrgMatter", label:"Org Matter (%)", color:"#795548", threshold:5, thresholdDir:"below"},
-      {key:"pH", label:"pH", color:"#7b1fa2", threshold:null, thresholdLow:5.5, thresholdHigh:7.5}
+      {key:"Nitrate", label:"Nitrate (ppm)", threshold:30, dir:"above", flagColor:"#c62828"},
+      {key:"Phosphate", label:"Phosphate (ppm)", threshold:100, dir:"above", flagColor:"#c62828"},
+      {key:"Potassium", label:"Potassium (ppm)", threshold:800, dir:"above", flagColor:"#c62828"},
+      {key:"OrgMatter", label:"Org Matter (%)", threshold:5, dir:"below", flagColor:"#c62828"},
+      {key:"pH", label:"pH", threshold:null, thresholdLow:5.5, thresholdHigh:7.5, dir:"range", flagColor:"#7b1fa2"}
     ];
 
     var html = '<div class="trends-section">';
     html += '<h2>Nutrient Trends by Pasture</h2>';
-    html += '<p class="trends-note">Showing pastures with data in 2 or more sampling years. Red dashed lines indicate concern thresholds. Purple dashed lines indicate optimal range boundaries.</p>';
+    html += '<p class="trends-note">Showing pastures with data in 2 or more sampling years. Black lines indicate values within acceptable range. Red or purple segments indicate values outside thresholds. Dashed lines show threshold boundaries.</p>';
 
     qualifying.forEach(function(pn, pi){
       var data = trendData[pn];
@@ -494,6 +492,14 @@ require([
         });
       });
     }, 200);
+  }
+
+  function isOutOfRange(val, nut){
+    if(val == null) return false;
+    if(nut.dir === "above") return val > nut.threshold;
+    if(nut.dir === "below") return val < nut.threshold;
+    if(nut.dir === "range") return val < nut.thresholdLow || val > nut.thresholdHigh;
+    return false;
   }
 
   function drawMiniChart(canvas, years, values, nut){
@@ -547,6 +553,7 @@ require([
       ctx.beginPath(); ctx.moveTo(padL, gy); ctx.lineTo(padL + plotW, gy); ctx.stroke();
     }
 
+    // Threshold lines
     ctx.setLineDash([4, 3]);
     ctx.lineWidth = 1.5;
     if(nut.threshold != null){
@@ -563,25 +570,37 @@ require([
     }
     ctx.setLineDash([]);
 
-    ctx.strokeStyle = nut.color;
+    // Draw line segments: black when in range, colored when out
     ctx.lineWidth = 2;
-    ctx.beginPath();
-    var started = false;
+    var prevIdx = -1;
     for(var i = 0; i < years.length; i++){
       if(values[i] == null) continue;
-      var px = xPos(i), py = yPos(values[i]);
-      if(!started){ ctx.moveTo(px, py); started = true; }
-      else { ctx.lineTo(px, py); }
+      if(prevIdx >= 0){
+        var v1 = values[prevIdx], v2 = values[i];
+        var bad1 = isOutOfRange(v1, nut);
+        var bad2 = isOutOfRange(v2, nut);
+        if(bad1 || bad2){
+          ctx.strokeStyle = nut.flagColor;
+        } else {
+          ctx.strokeStyle = "#333";
+        }
+        ctx.beginPath();
+        ctx.moveTo(xPos(prevIdx), yPos(v1));
+        ctx.lineTo(xPos(i), yPos(v2));
+        ctx.stroke();
+      }
+      prevIdx = i;
     }
-    ctx.stroke();
 
+    // Data points: black if in range, colored if out
     for(var j = 0; j < years.length; j++){
       if(values[j] == null) continue;
       var dpx = xPos(j), dpy = yPos(values[j]);
-      ctx.fillStyle = nut.color;
+      var bad = isOutOfRange(values[j], nut);
+      ctx.fillStyle = bad ? nut.flagColor : "#333";
       ctx.beginPath(); ctx.arc(dpx, dpy, 3.5, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = "#333";
-      ctx.font = "9px Segoe UI";
+      ctx.fillStyle = bad ? nut.flagColor : "#333";
+      ctx.font = "bold 9px Segoe UI";
       ctx.textAlign = "center";
       ctx.fillText(values[j].toFixed(1), dpx, dpy - 7);
     }
