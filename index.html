@@ -249,7 +249,12 @@ require([
       });
       var pad=0.002;minLon-=pad;maxLon+=pad;minLat-=pad;maxLat+=pad;
       var blM=toMerc(minLon,minLat),trM=toMerc(maxLon,maxLat);
+
+      // Dynamic canvas size based on pasture count
       var cw=900,ch=600;
+      if(features.length > 20){ cw=1200; ch=900; }
+      if(features.length > 40){ cw=1400; ch=1100; }
+
       var mW=trM[0]-blM[0],mH=trM[1]-blM[1];
       var ratio=mW/mH;
       if(ratio>cw/ch){ch=Math.round(cw/ratio);}else{cw=Math.round(ch*ratio);}
@@ -259,6 +264,7 @@ require([
 
       html+='<div class="map-container"><canvas id="mapCanvas" width="'+cw+'" height="'+ch+'"></canvas></div>';
 
+      var numFeatures = features.length;
       setTimeout(function(){
         var canvas=document.getElementById("mapCanvas");
         if(!canvas) return;
@@ -266,6 +272,8 @@ require([
         var img=new Image();img.crossOrigin="anonymous";
         img.onload=function(){
           ctx.drawImage(img,0,0,cw,ch);
+
+          // Draw all pasture polygons first
           features.forEach(function(f){
             if(!f.geometry||!f.geometry.rings) return;
             f.geometry.rings.forEach(function(ring){
@@ -280,6 +288,23 @@ require([
               ctx.fillStyle="rgba(45,132,59,0.35)";ctx.fill();
               ctx.strokeStyle="#FFD700";ctx.lineWidth=2.5;ctx.stroke();
             });
+          });
+
+          // Then draw labels with collision detection
+          var usedBoxes = [];
+
+          // Dynamic font size based on pasture count
+          var fontSize = 11;
+          if(numFeatures > 20) fontSize = 9;
+          if(numFeatures > 40) fontSize = 8;
+
+          // Sort features by area (largest first) so big pastures get labels first
+          var sortedFeatures = features.slice().sort(function(a,b){
+            return (b.attributes.Acreage||0) - (a.attributes.Acreage||0);
+          });
+
+          sortedFeatures.forEach(function(f){
+            if(!f.geometry||!f.geometry.rings) return;
             var rings=f.geometry.rings[0];
             var cx=0,cy=0;
             rings.forEach(function(pt){cx+=pt[0];cy+=pt[1];});
@@ -287,13 +312,40 @@ require([
             var cm=toMerc(cx,cy);
             var lpx=(cm[0]-blM[0])/mW*cw;
             var lpy=ch-(cm[1]-blM[1])/mH*ch;
-            var label=f.attributes.PastureNumber||"";
-            ctx.font="bold 11px Segoe UI";
+
+            // Shorten labels for large farms by stripping the farm number prefix
+            var fullLabel=f.attributes.PastureNumber||"";
+            var label=fullLabel;
+            if(numFeatures > 15){
+              var dash=fullLabel.indexOf("-");
+              if(dash > 0) label=fullLabel.substring(dash+1);
+            }
+
+            ctx.font="bold " + fontSize + "px Segoe UI";
             var tw=ctx.measureText(label).width;
-            ctx.fillStyle="rgba(255,255,255,0.85)";
-            ctx.fillRect(lpx-tw/2-3,lpy-7,tw+6,16);
-            ctx.fillStyle="#1B3A5C";ctx.textAlign="center";ctx.textBaseline="middle";
-            ctx.fillText(label,lpx,lpy);
+            var lx1=lpx-tw/2-4;
+            var ly1=lpy-fontSize/2-2;
+            var lw=tw+8;
+            var lh=fontSize+6;
+
+            // Check for overlap with existing labels
+            var overlap=false;
+            for(var ub=0;ub<usedBoxes.length;ub++){
+              var b=usedBoxes[ub];
+              if(lx1<b.x+b.w && lx1+lw>b.x && ly1<b.y+b.h && ly1+lh>b.y){
+                overlap=true; break;
+              }
+            }
+
+            if(!overlap){
+              ctx.fillStyle="rgba(255,255,255,0.85)";
+              ctx.fillRect(lx1,ly1,lw,lh);
+              ctx.fillStyle="#1B3A5C";
+              ctx.textAlign="center";
+              ctx.textBaseline="middle";
+              ctx.fillText(label,lpx,lpy);
+              usedBoxes.push({x:lx1,y:ly1,w:lw,h:lh});
+            }
           });
         };
         img.src=bmUrl;
@@ -469,7 +521,6 @@ require([
     var minV = Math.min.apply(null, validVals);
     var maxV = Math.max.apply(null, validVals);
 
-    // Include thresholds in range
     if(nut.threshold != null){
       if(nut.threshold < minV) minV = nut.threshold;
       if(nut.threshold > maxV) maxV = nut.threshold;
@@ -489,7 +540,6 @@ require([
     function yPos(v){ return padT + plotH - ((v - minV) / range * plotH); }
     function xPos(i){ return padL + (i / (years.length - 1)) * plotW; }
 
-    // Grid lines
     ctx.strokeStyle = "#eee";
     ctx.lineWidth = 0.5;
     for(var g = 0; g <= 4; g++){
@@ -497,7 +547,6 @@ require([
       ctx.beginPath(); ctx.moveTo(padL, gy); ctx.lineTo(padL + plotW, gy); ctx.stroke();
     }
 
-    // Threshold lines
     ctx.setLineDash([4, 3]);
     ctx.lineWidth = 1.5;
     if(nut.threshold != null){
@@ -514,7 +563,6 @@ require([
     }
     ctx.setLineDash([]);
 
-    // Data line
     ctx.strokeStyle = nut.color;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -527,20 +575,17 @@ require([
     }
     ctx.stroke();
 
-    // Data points
     for(var j = 0; j < years.length; j++){
       if(values[j] == null) continue;
       var dpx = xPos(j), dpy = yPos(values[j]);
       ctx.fillStyle = nut.color;
       ctx.beginPath(); ctx.arc(dpx, dpy, 3.5, 0, Math.PI*2); ctx.fill();
-      // Value label
       ctx.fillStyle = "#333";
       ctx.font = "9px Segoe UI";
       ctx.textAlign = "center";
       ctx.fillText(values[j].toFixed(1), dpx, dpy - 7);
     }
 
-    // Y axis labels
     ctx.fillStyle = "#666";
     ctx.font = "9px Segoe UI";
     ctx.textAlign = "right";
@@ -548,7 +593,6 @@ require([
     ctx.fillText(maxV.toFixed(0), padL - 3, padT + 4);
     ctx.fillText(minV.toFixed(0), padL - 3, padT + plotH);
 
-    // X axis labels (years)
     ctx.fillStyle = "#333";
     ctx.font = "9px Segoe UI";
     ctx.textAlign = "center";
