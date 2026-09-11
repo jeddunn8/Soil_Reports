@@ -112,11 +112,16 @@ require([
   var serverToken = null;
   var oct1cutoff = null;
 
-  (function(){
-    var now = new Date();
-    var cy = now.getFullYear();
-    oct1cutoff = new Date(cy - 3, 9, 1);
-  })();
+  // CAFO-aware sampling interval:
+  //   Large           = due every 3 years
+  //   Medium / Small   = due every 5 years (default)
+  // Returns the Oct 1 cutoff date for the farm's size plus the interval in years.
+  function cutoffForCafo(cafoSize){
+    var cy = new Date().getFullYear();
+    var c = (cafoSize || "").toString().trim().toLowerCase();
+    var interval = (c === "large") ? 3 : 5;
+    return { date: new Date(cy - interval, 9, 1), interval: interval };
+  }
 
   IdentityManager.checkSignInStatus(portalUrl + "/sharing").then(function(cred){
     return exchangeToken(cred.token);
@@ -185,6 +190,11 @@ require([
     var totalAcres = 0;
     features.forEach(function(f){ totalAcres += (f.attributes.Acreage || 0); });
 
+    // Set the compliance cutoff based on THIS farm's CAFO size (Large=3yr, Med/Small=5yr).
+    // oct1cutoff is used by both the status loop below and the "Last Tested" table flag.
+    var cutoffInfo = cutoffForCafo(cafo);
+    oct1cutoff = cutoffInfo.date;
+
     var anyDue = false, dueCount = 0, noTestCount = 0;
     features.forEach(function(f){
       var a = f.attributes;
@@ -202,7 +212,7 @@ require([
       samplingStatus = "Due for Fall Sampling (" + d.join(", ") + ")";
       samplingClass = "sampling-due";
     } else {
-      samplingStatus = "Sampling Current, All Fields Within 3-Year Window";
+      samplingStatus = "Sampling Current, All Fields Within " + cutoffInfo.interval + "-Year Window";
       samplingClass = "sampling-current";
     }
 
@@ -227,10 +237,10 @@ require([
     html += '<div class="legend-group-title"><span class="legend-swatch swatch-red"></span> Regulatory Concern</div>';
     html += '<div class="legend-group-desc">Value exceeds levels that may require management action under NPDES/CAFO permit requirements.</div>';
     html += '<div class="legend-thresholds">';
-    html += '<span>Nitrate &gt; 30 ppm</span>';
-    html += '<span>Phosphate &gt; 100 ppm</span>';
-    html += '<span>Potassium &gt; 800 ppm</span>';
-    html += '<span>Organic Matter &lt; 5%</span>';
+    html += '<span>Nitrate > 30 ppm</span>';
+    html += '<span>Phosphate > 100 ppm</span>';
+    html += '<span>Potassium > 800 ppm</span>';
+    html += '<span>Organic Matter < 5%</span>';
     html += '</div></div>';
     html += '<div class="legend-group" style="margin-top:10px">';
     html += '<div class="legend-group-title"><span class="legend-swatch swatch-purple"></span> Soil Health Watch</div>';
